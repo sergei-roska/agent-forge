@@ -1,0 +1,21 @@
+{
+  "name": "@agent-forge/server-drupal-content-model",
+  "version": "0.1.0",
+  "description": "Drupal Content Model MCP Server",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "@agent-forge/drupal-api-client": "workspace:*",
+    "@agent-forge/mcp-core": "workspace:*",
+    "@modelcontextprotocol/sdk": "latest",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.20",
+    "typescript": "^5.3.3"
+  }
+}

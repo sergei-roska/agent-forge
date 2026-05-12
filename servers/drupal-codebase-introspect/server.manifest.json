@@ -1,0 +1,10 @@
+{
+  "id": "drupal-codebase-introspect",
+  "name": "Drupal Codebase Introspect",
+  "description": "Mapping Drupal behaviors to file locations (Hooks, Services, Plugins).",
+  "version": "0.1.0",
+  "capabilities": {
+    "tools": true
+  },
+  "domain": "codebase"
+}

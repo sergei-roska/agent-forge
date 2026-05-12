@@ -1,0 +1,12 @@
+{
+  "id": "web-observe-capture",
+  "name": "Web Observe & Capture",
+  "version": "0.1.0",
+  "description": "Browser automation server for screenshots, DOM snapshots, and layout analysis.",
+  "domain": "observation",
+  "source_of_truth": "browser",
+  "capabilities": {
+    "tools": true
+  }
+}
+

@@ -1,0 +1,19 @@
+{
+  "name": "@agent-forge/filesystem-index",
+  "version": "0.1.0",
+  "description": "Shared filesystem search and indexing for Drupal codebase",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "fs-extra": "^11.2.0",
+    "globby": "^14.0.0",
+    "js-yaml": "^4.1.1"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@agent-forge/server-drupal-codebase-introspect",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server for Drupal codebase introspection and mapping (Spec 04)",
+  "type": "module",
+  "bin": {
+    "server-drupal-codebase-introspect": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@agent-forge/filesystem-index": "workspace:*",
+    "@agent-forge/mcp-core": "workspace:*",
+    "@modelcontextprotocol/sdk": "latest",
+    "js-yaml": "^4.1.1",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "latest",
+    "typescript": "latest"
+  }
+}

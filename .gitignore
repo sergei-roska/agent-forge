@@ -1,0 +1,29 @@
+# --- Dependencies & Build ---
+node_modules/
+dist/
+build/
+out/
+.cache/
+pnpm-debug.log*
+
+# --- Environment & Secrets ---
+.env*
+package-lock.json
+pnpm-lock.yaml
+
+# --- MCP & Internal Tooling ---
+.mcp-vector-search/
+.mcp.json
+models/
+
+# --- Local Operational Context (Internal) ---
+# These are local files for AI context and standalone testing
+docs/
+.standalone-smoke/
+
+# --- Editor & System ---
+.DS_Store
+.nvm/
+*.log
+.vscode/
+.idea/

@@ -1,0 +1,10 @@
+{
+  "id": "drupal-operations-debug",
+  "name": "Drupal Operations & Debug",
+  "description": "Runtime diagnostics, watchdog analysis, and health monitoring.",
+  "version": "0.1.0",
+  "capabilities": {
+    "tools": true
+  },
+  "domain": "operations"
+}

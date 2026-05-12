@@ -1,0 +1,19 @@
+{
+  "name": "@agent-forge/mcp-core",
+  "version": "0.1.0",
+  "description": "Shared MCP contracts and utilities",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  }
+}

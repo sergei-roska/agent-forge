@@ -1,0 +1,16 @@
+{
+  "name": "@agent-forge/browser-observer",
+  "version": "0.1.0",
+  "description": "Shared browser observation and screenshot capture",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

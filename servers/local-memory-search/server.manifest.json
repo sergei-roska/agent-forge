@@ -1,0 +1,16 @@
+{
+  "id": "local-memory-search",
+  "name": "Local Memory Search",
+  "description": "Project-scoped local indexing, semantic retrieval, hybrid search, and context packing.",
+  "version": "0.1.0",
+  "capabilities": {
+    "tools": true
+  },
+  "domain": "local_memory",
+  "source_of_truth": "mixed",
+  "prohibitions": [
+    "Must never execute project code while indexing.",
+    "Must never build a cross-project global index.",
+    "Must never read outside the requested project root unless explicitly configured."
+  ]
+}

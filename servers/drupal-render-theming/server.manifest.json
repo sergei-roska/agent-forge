@@ -1,0 +1,12 @@
+{
+  "id": "drupal-render-theming",
+  "name": "Drupal Render & Theming",
+  "version": "0.1.0",
+  "description": "Explains Drupal template resolution, preprocess chains, and SDC components.",
+  "domain": "theming",
+  "source_of_truth": "codebase",
+  "capabilities": {
+    "tools": true
+  }
+}
+

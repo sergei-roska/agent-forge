@@ -1,0 +1,19 @@
+{
+  "name": "@agent-forge/server-drupal-runtime-inspect",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@agent-forge/drupal-api-client": "workspace:*",
+    "@agent-forge/mcp-core": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

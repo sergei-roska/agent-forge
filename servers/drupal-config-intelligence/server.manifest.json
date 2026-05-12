@@ -1,0 +1,10 @@
+{
+  "id": "drupal-config-intelligence",
+  "name": "Drupal Config Intelligence",
+  "description": "Smart analysis of Drupal configuration, drift detection, and deployment safety.",
+  "version": "0.1.0",
+  "capabilities": {
+    "tools": true
+  },
+  "domain": "configuration"
+}

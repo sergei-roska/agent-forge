@@ -1,0 +1,25 @@
+{
+  "name": "@agent-forge/server-web-observe-capture",
+  "version": "0.1.0",
+  "description": "Browser-based observation and capture server for Forge",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest",
+    "@agent-forge/mcp-core": "workspace:*",
+    "playwright": "^1.41.0",
+    "zod": "^3.22.4",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/uuid": "^9.0.7",
+    "typescript": "^5.3.3"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "agent-forge",
+  "private": true,
+  "description": "Dedicated workspace for building and shipping MCP servers and specialized agent tools.",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "export:standalone": "node scripts/export-standalone.mjs",
+    "export:standalone:all": "node scripts/export-standalone.mjs --all",
+    "verify:standalone": "node scripts/verify-standalone.mjs"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "esbuild": "^0.25.9",
+    "typescript": "^5.0.0"
+  }
+}
