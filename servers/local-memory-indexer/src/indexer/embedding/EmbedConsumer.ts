@@ -93,6 +93,8 @@ export class EmbedConsumer {
   constructor(
     private readonly db: Database.Database,
     private readonly projectPath: string,
+    /** Inject a pre-built backend (used in tests to avoid Ollama dependency). */
+    private readonly _backendOverride?: EmbeddingBackend,
   ) {
     this.chunks = new ChunksQueueRepo(db);
     this.runs   = new IndexRunsRepo(db);
@@ -122,7 +124,7 @@ export class EmbedConsumer {
     // Resolve backend and probe vector dimension
     let backend: EmbeddingBackend;
     try {
-      backend = await createEmbeddingBackend({ backend: opts.backend });
+      backend = this._backendOverride ?? await createEmbeddingBackend({ backend: opts.backend });
     } catch (err) {
       this.runs.update(runId, {
         status: 'paused',
