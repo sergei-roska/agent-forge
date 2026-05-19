@@ -1,8 +1,13 @@
 import type { ToolDefinition } from '../mcp/runtime.js';
-import { startIndexingTool } from './startIndexing.js';
-import { pauseIndexingTool } from './pauseIndexing.js';
-import { getIndexingStatusTool } from './getIndexingStatus.js';
+import type { RunCoordinator } from '../indexer/RunCoordinator.js';
+import { makeStartIndexingTool } from './startIndexing.js';
+import { makePauseIndexingTool } from './pauseIndexing.js';
+import { makeGetIndexingStatusTool } from './getIndexingStatus.js';
 
-export function createIndexerTools(): ToolDefinition[] {
-  return [startIndexingTool, pauseIndexingTool, getIndexingStatusTool];
+export function createIndexerTools(coordinator: RunCoordinator): ToolDefinition[] {
+  return [
+    makeStartIndexingTool(coordinator),
+    makePauseIndexingTool(coordinator),
+    makeGetIndexingStatusTool(coordinator),
+  ];
 }
