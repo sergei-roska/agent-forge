@@ -8,46 +8,51 @@ import {
   Float32,
   FixedSizeList,
   List,
-  Bool,
 } from 'apache-arrow';
 import fs from 'node:fs';
 import { SCHEMA_VERSION } from '../constants.js';
 import { lanceDbDir } from './paths.js';
 import { IndexerError, ErrorCode } from '../errors/codes.js';
 
-export const VECTOR_DIM = 1024;
+/**
+ * Default vector dimension. qwen3-embedding:8b → 4096, Xenova/multilingual-e5-large → 1024.
+ * Always resolved at runtime via probeVectorDim() before the first LanceDB write.
+ * Override with env var VECTOR_DIM if needed.
+ */
+export const DEFAULT_VECTOR_DIM = Number(process.env['VECTOR_DIM'] ?? 4096);
+
 export const CHUNKS_TABLE = 'chunks';
 
-export const CHUNKS_SCHEMA = new Schema([
-  new Field('chunk_id',         new Utf8(),  false),
-  new Field('project_path',     new Utf8(),  false),
-  new Field('file_path',        new Utf8(),  false),
-  new Field('start_line',       new Int32(), true),
-  new Field('end_line',         new Int32(), true),
-  new Field('text',             new Utf8(),  true),
-  new Field('raw_text',         new Utf8(),  true),
-  new Field('vector',
-    new FixedSizeList(VECTOR_DIM, new Field('item', new Float32(), true)),
-    true,
-  ),
-  new Field('language',         new Utf8(),  true),
-  new Field('node_type',        new Utf8(),  true),
-  new Field('class_name',       new Utf8(),  true),
-  new Field('function_name',    new Utf8(),  true),
-  new Field('symbol_path',      new Utf8(),  true),
-  new Field('content_hash',     new Utf8(),  true),
-  new Field('mtime_ns',         new Int64(), true),
-  new Field('last_commit_hash', new Utf8(),  true),
-  new Field('tags',
-    new List(new Field('item', new Utf8(), true)),
-    true,
-  ),
-  new Field('summary',          new Utf8(),  true),
-  new Field('schema_version',   new Utf8(),  false),
-  new Field('indexed_at',       new Int64(), true),
-]);
+export function buildChunksSchema(vectorDim: number): Schema {
+  return new Schema([
+    new Field('chunk_id',         new Utf8(),  false),
+    new Field('project_path',     new Utf8(),  false),
+    new Field('file_path',        new Utf8(),  false),
+    new Field('start_line',       new Int32(), true),
+    new Field('end_line',         new Int32(), true),
+    new Field('text',             new Utf8(),  true),
+    new Field('raw_text',         new Utf8(),  true),
+    new Field('vector',           new FixedSizeList(vectorDim, new Field('item', new Float32(), true)), true),
+    new Field('language',         new Utf8(),  true),
+    new Field('node_type',        new Utf8(),  true),
+    new Field('class_name',       new Utf8(),  true),
+    new Field('function_name',    new Utf8(),  true),
+    new Field('symbol_path',      new Utf8(),  true),
+    new Field('content_hash',     new Utf8(),  true),
+    new Field('mtime_ns',         new Int64(), true),
+    new Field('last_commit_hash', new Utf8(),  true),
+    new Field('tags',             new List(new Field('item', new Utf8(), true)), true),
+    new Field('summary',          new Utf8(),  true),
+    new Field('schema_version',   new Utf8(),  false),
+    new Field('indexed_at',       new Int64(), true),
+  ]);
+}
 
-export async function openChunksTable(projectPath: string): Promise<lancedb.Table> {
+/** Open (or create) the `chunks` LanceDB table with the given vector dimension. */
+export async function openChunksTable(
+  projectPath: string,
+  vectorDim: number = DEFAULT_VECTOR_DIM,
+): Promise<lancedb.Table> {
   const dir = lanceDbDir(projectPath);
   fs.mkdirSync(dir, { recursive: true });
 
@@ -60,7 +65,7 @@ export async function openChunksTable(projectPath: string): Promise<lancedb.Tabl
     return tbl;
   }
 
-  return conn.createEmptyTable(CHUNKS_TABLE, CHUNKS_SCHEMA, { existOk: true });
+  return conn.createEmptyTable(CHUNKS_TABLE, buildChunksSchema(vectorDim), { existOk: true });
 }
 
 async function guardSchemaVersion(tbl: lancedb.Table, projectPath: string): Promise<void> {
