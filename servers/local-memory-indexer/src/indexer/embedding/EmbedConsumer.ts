@@ -12,31 +12,8 @@ import type { EmbeddingBackend } from './EmbeddingBackend.js';
 import { SCHEMA_VERSION } from '../../constants.js';
 import { getConfig } from '../../config.js';
 import { IndexerError, ErrorCode } from '../../errors/codes.js';
-
-// ── Retry helper for LanceDB lock errors ─────────────────────────────────────
-
-const LOCK_BACKOFF_MS = [1_000, 2_000, 4_000, 8_000];
-
-function isLockError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
-  return msg.includes('lock') || msg.includes('conflict') || msg.includes('busy');
-}
-
-async function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-async function withLanceDbRetry<T>(fn: () => Promise<T>): Promise<T> {
-  for (let attempt = 0; attempt <= LOCK_BACKOFF_MS.length; attempt++) {
-    try {
-      return await fn();
-    } catch (err) {
-      if (attempt === LOCK_BACKOFF_MS.length || !isLockError(err)) throw err;
-      await sleep(LOCK_BACKOFF_MS[attempt]!);
-    }
-  }
-  throw new Error('unreachable');
-}
+import { withLanceDbRetry, isLockError } from '../../errors/retry.js';
+import { assertSchemaVersion } from '../../storage/lancedb.js';
 
 // ── LanceDB record builder ────────────────────────────────────────────────────
 
@@ -273,6 +250,9 @@ export class EmbedConsumer {
     vectors: number[][],
     enrichResults: (unknown | null)[],
   ): Promise<void> {
+    // Schema guard before every write batch (spec §5.2)
+    assertSchemaVersion(SCHEMA_VERSION);
+
     const records = batch.map((chunk, i) => {
       const enriched = enrichResults[i] as { summary: string; tags: string[] } | null;
       const mtimeNs  = this.getMtimeNs(chunk.file_path);

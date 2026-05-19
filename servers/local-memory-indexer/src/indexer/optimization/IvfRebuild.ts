@@ -5,6 +5,7 @@ import { IndexStatsRepo } from '../../storage/repositories/IndexStatsRepo.js';
 import { IndexRunsRepo } from '../../storage/repositories/IndexRunsRepo.js';
 import { IVF_REBUILD_THRESHOLD, SCHEMA_VERSION } from '../../constants.js';
 import { randomUUID } from 'node:crypto';
+import { withLanceDbRetry } from '../../errors/retry.js';
 
 const IVF_NUM_PARTITIONS = 256;
 const IVF_SPEC_SUB_VECTORS = 96; // spec §2.4 — validated against actual dim below
@@ -85,14 +86,16 @@ export class IvfRebuild {
     });
 
     try {
-      await table.createIndex('vector', {
-        config: Index.ivfPq({
-          numPartitions: IVF_NUM_PARTITIONS,
-          numSubVectors,
-          distanceType: 'cosine',
+      await withLanceDbRetry(() =>
+        table.createIndex('vector', {
+          config: Index.ivfPq({
+            numPartitions: IVF_NUM_PARTITIONS,
+            numSubVectors,
+            distanceType: 'cosine',
+          }),
+          replace: true,
         }),
-        replace: true,
-      });
+      );
 
       const duration_ms = Date.now() - startMs;
 

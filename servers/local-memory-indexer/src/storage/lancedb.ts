@@ -68,6 +68,25 @@ export async function openChunksTable(
   return conn.createEmptyTable(CHUNKS_TABLE, buildChunksSchema(vectorDim), { existOk: true });
 }
 
+/**
+ * Lightweight pre-write schema guard for use before every write batch.
+ * Checks that the SCHEMA_VERSION constant in the batch matches the indexer's current version.
+ * This catches the case where a new indexer version starts writing into an old-schema table.
+ * Full table scan is avoided — the check is a constant comparison only.
+ *
+ * Call this before every LanceDB upsert batch (spec §5.2 "schema guard before every write batch").
+ */
+export function assertSchemaVersion(recordSchemaVersion: string): void {
+  if (recordSchemaVersion !== SCHEMA_VERSION) {
+    throw new IndexerError(
+      ErrorCode.SCHEMA_MISMATCH,
+      `Batch schema_version '${recordSchemaVersion}' does not match indexer SCHEMA_VERSION '${SCHEMA_VERSION}'. ` +
+        'All writes blocked. Run delete_project_index then start_indexing with force=true.',
+      { batch_version: recordSchemaVersion, required_version: SCHEMA_VERSION },
+    );
+  }
+}
+
 async function guardSchemaVersion(tbl: lancedb.Table, projectPath: string): Promise<void> {
   const count = await tbl.countRows();
   if (count === 0) return;

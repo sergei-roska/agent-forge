@@ -8,6 +8,7 @@ import { FingerprintsRepo } from '../../storage/repositories/FingerprintsRepo.js
 import { ChunksQueueRepo } from '../../storage/repositories/ChunksQueueRepo.js';
 import { IndexRunsRepo } from '../../storage/repositories/IndexRunsRepo.js';
 import { computeChunkIdFromText } from '../../identity/chunkId.js';
+import { ErrorCode } from '../../errors/codes.js';
 import { SCHEMA_VERSION, DEFAULT_MAX_CHUNK_CHARS, MAX_PARSE_RETRIES } from '../../constants.js';
 
 // ── Extension routing table (spec §2.2.3) ────────────────────────────────────
@@ -102,7 +103,7 @@ export class ChunkerDispatcher {
         stats.chunks_created += count;
       } catch (err) {
         this.fps.incrementRetry(this.projectPath, fp.file_path);
-        const msg = `parse error: ${fp.file_path}: ${err instanceof Error ? err.message : String(err)}`;
+        const msg = `[${ErrorCode.PHASE1_PARSE_ERROR}] ${fp.file_path}: ${err instanceof Error ? err.message : String(err)}`;
         stats.warnings.push(msg);
         stats.files_errored++;
 
