@@ -14,6 +14,7 @@ import { getConfig } from '../../config.js';
 import { IndexerError, ErrorCode } from '../../errors/codes.js';
 import { withLanceDbRetry, isLockError } from '../../errors/retry.js';
 import { assertSchemaVersion } from '../../storage/lancedb.js';
+import { rootLogger } from '../../observability/logger.js';
 
 // ── LanceDB record builder ────────────────────────────────────────────────────
 
@@ -106,6 +107,9 @@ export class EmbedConsumer {
 
   async run(runId: string, opts: ConsumerOptions = {}): Promise<ConsumerStats> {
     const cfg = getConfig();
+    const log = rootLogger.child({ run_id: runId, phase: 'embedding' });
+    const runStart = Date.now();
+
     const result: ConsumerStats = {
       chunks_embedded: 0,
       chunks_errored:  0,
@@ -178,6 +182,16 @@ export class EmbedConsumer {
         result.chunks_embedded    += batch.length;
         result.batches_processed  += 1;
 
+        const elapsedSec = (Date.now() - runStart) / 1000;
+        const throughput = elapsedSec > 0 ? Math.round(result.chunks_embedded / elapsedSec * 10) / 10 : 0;
+        log.info('batch embedded', {
+          batch_size:             batch.length,
+          chunks_embedded_total:  result.chunks_embedded,
+          batches_processed:      result.batches_processed,
+          throughput_chunks_per_sec: throughput,
+          backend:                backend.name,
+        });
+
         this.runs.update(runId, {
           chunks_embedded: result.chunks_embedded,
           updated_at: Date.now(),
@@ -198,11 +212,13 @@ export class EmbedConsumer {
 
         // DATABASE_LOCKED after all retries → interrupt
         if (isLockError(err)) {
+          log.error('batch failed: DATABASE_LOCKED, interrupting run', { warning_count: result.chunks_errored });
           this.runs.update(runId, { status: 'interrupted', error: errorMsg, updated_at: Date.now() });
           result.interrupted = true;
           return result;
         }
         // Other errors: log and continue
+        log.warn('batch failed, continuing', { warning_count: result.chunks_errored, error: errorMsg });
       }
     }
 

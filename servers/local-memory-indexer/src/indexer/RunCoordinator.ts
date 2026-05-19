@@ -16,6 +16,7 @@ import type { StartIndexingInput, StartIndexingOutput } from '../contracts/start
 import type { PauseIndexingOutput } from '../contracts/pauseIndexing.schema.js';
 import type { GetIndexingStatusOutput } from '../contracts/getIndexingStatus.schema.js';
 import { IndexerError, ErrorCode } from '../errors/codes.js';
+import { rootLogger } from '../observability/logger.js';
 
 // ── Priority mapping ──────────────────────────────────────────────────────────
 
@@ -229,11 +230,16 @@ export class RunCoordinator {
     const db        = openDb(projectPath);
     const runsRepo  = new IndexRunsRepo(db);
     const priority  = PRIORITY_MAP[opts.priority ?? 'background'] ?? 1;
+    const log       = rootLogger.child({ run_id: runId });
+
+    log.info('pipeline started', { project_path: projectPath, phases });
 
     try {
       // ── Phase 1: Discovery ───────────────────────────────────────────────
       if (phases.includes('discovery')) {
-        runsRepo.update(runId, { phase: 'discovery', status: 'running', updated_at: Date.now() });
+        const t0 = Date.now();
+        runsRepo.update(runId, { phase: 'discovery', status: 'running', updated_at: t0 });
+        log.info('phase discovery started', { phase: 'discovery' });
 
         const files = await scanProject(projectPath, {
           maxFileSizeKb: opts.max_file_size_kb,
@@ -242,29 +248,39 @@ export class RunCoordinator {
         });
 
         runsRepo.update(runId, { files_discovered: files.length, updated_at: Date.now() });
+        log.info('scan complete', { phase: 'discovery', files_discovered: files.length });
 
         const differ  = new FingerprintDiffer(db, projectPath);
         const diffs   = await differ.diff(files, opts.force ?? false);
         const pending = diffs.filter((d) => d.status !== 'up_to_date').length;
+        const upToDate = diffs.length - pending;
 
         runsRepo.update(runId, { files_parsed: pending, updated_at: Date.now() });
+        log.info('fingerprint diff complete', { phase: 'discovery', pending_parse: pending, up_to_date: upToDate });
 
-        const dispatcher   = new ChunkerDispatcher(db, projectPath);
+        const dispatcher    = new ChunkerDispatcher(db, projectPath);
         const dispatchStats = await dispatcher.dispatch(runId, priority);
 
-        runsRepo.update(runId, {
+        runsRepo.update(runId, { chunks_created: dispatchStats.chunks_created, updated_at: Date.now() });
+        log.info('chunking complete', {
+          phase:          'discovery',
+          duration_ms:    Date.now() - t0,
+          files_processed: dispatchStats.files_processed,
+          files_errored:  dispatchStats.files_errored,
           chunks_created: dispatchStats.chunks_created,
-          updated_at:     Date.now(),
+          warning_count:  dispatchStats.warnings.length,
         });
       }
 
       // ── Phase 2: Embedding ───────────────────────────────────────────────
       if (phases.includes('embedding')) {
-        runsRepo.update(runId, { phase: 'embedding', updated_at: Date.now() });
+        const t0 = Date.now();
+        runsRepo.update(runId, { phase: 'embedding', updated_at: t0 });
 
-        const chunksRepo = new ChunksQueueRepo(db);
+        const chunksRepo   = new ChunksQueueRepo(db);
         const totalPending = chunksRepo.countPending(projectPath);
         runsRepo.update(runId, { chunks_total_pending: totalPending, updated_at: Date.now() });
+        log.info('phase embedding started', { phase: 'embedding', chunks_total_pending: totalPending });
 
         const consumer = new EmbedConsumer(db, projectPath);
         this.activeConsumers.set(runId, consumer);
@@ -281,6 +297,18 @@ export class RunCoordinator {
           updated_at:      Date.now(),
         });
 
+        const embeddingDuration = Date.now() - t0;
+        log.info('embedding complete', {
+          phase:           'embedding',
+          duration_ms:     embeddingDuration,
+          chunks_embedded: consumerStats.chunks_embedded,
+          chunks_errored:  consumerStats.chunks_errored,
+          batches:         consumerStats.batches_processed,
+          backend_used:    consumerStats.backend_used,
+          paused:          consumerStats.paused,
+          interrupted:     consumerStats.interrupted,
+        });
+
         this.activeConsumers.delete(runId);
 
         // ── IVF-PQ rebuild (after writes, never during) ────────────────
@@ -290,9 +318,23 @@ export class RunCoordinator {
             const vectorDim = await probeVectorDim(backend);
             const table     = await openChunksTable(projectPath, vectorDim);
             const rebuilder = new IvfRebuild(db, projectPath);
-            await rebuilder.maybeRebuild(table, vectorDim);
-          } catch {
-            // IVF-PQ failure is non-fatal — run still completes
+            const rebuildResult = await rebuilder.maybeRebuild(table, vectorDim);
+            if (rebuildResult.triggered) {
+              log.info('ivf-pq rebuild complete', {
+                phase:           'ivf_rebuild',
+                duration_ms:     rebuildResult.duration_ms,
+                vector_count:    rebuildResult.vector_count,
+                num_partitions:  rebuildResult.num_partitions,
+                num_sub_vectors: rebuildResult.num_sub_vectors,
+              });
+            } else {
+              log.debug('ivf-pq rebuild skipped', { phase: 'ivf_rebuild', reason: rebuildResult.reason });
+            }
+          } catch (ivfErr) {
+            log.warn('ivf-pq rebuild failed (non-fatal)', {
+              phase: 'ivf_rebuild',
+              msg:   ivfErr instanceof Error ? ivfErr.message : String(ivfErr),
+            });
           }
         }
 
