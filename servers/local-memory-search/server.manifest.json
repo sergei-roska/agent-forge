@@ -1,16 +1,20 @@
 {
   "id": "local-memory-search",
   "name": "Local Memory Search",
-  "description": "Project-scoped local indexing, semantic retrieval, hybrid search, and context packing.",
-  "version": "0.1.0",
+  "description": "Read-only consumer: hybrid semantic + keyword (RRF) search, context packs, chunk navigation, and health diagnostics over the shared LanceDB index. Degrades gracefully to keyword/SQLite when the vector index or embedding backend is unavailable.",
+  "version": "1.0.0",
   "capabilities": {
     "tools": true
   },
   "domain": "local_memory",
-  "source_of_truth": "mixed",
+  "source_of_truth": "local_index",
+  "contract_frozen": "1.0",
   "prohibitions": [
-    "Must never execute project code while indexing.",
-    "Must never build a cross-project global index.",
-    "Must never read outside the requested project root unless explicitly configured."
+    "Must never write to LanceDB (no add, update, delete, create_index).",
+    "Must never write to the SQLite state database (read-only, PRAGMA query_only).",
+    "Must never write to the filesystem; source files are read-only for neighbor line expansion.",
+    "Must never build or query a cross-project global index.",
+    "Must never return a 500-equivalent internal error to the agent; always degrade to a usable result set.",
+    "Tool names, required parameters, and the output envelope shape are frozen from v1.0 and must not change without a version bump."
   ]
 }
