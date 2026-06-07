@@ -84,6 +84,30 @@ export class FilterRules {
     return false;
   }
 
+  /**
+   * Returns true if the directory at `absoluteDirPath` should be pruned from
+   * the walk. Applies ONLY `exclude_globs` and `.gitignore` — never the
+   * include allowlist or the file-only binary/size heuristics.
+   *
+   * The include allowlist must NOT prune directories: a parent dir (e.g.
+   * `servers/`) never matches a file-only glob (one ending in a filename
+   * pattern such as the TS-source glob), so applying the allowlist here would
+   * prune the whole subtree before any matching file is reached. include_globs
+   * is enforced per file in {@link shouldSkip}.
+   */
+  shouldSkipDir(absoluteDirPath: string): boolean {
+    const rel = path.relative(this.projectRoot, absoluteDirPath);
+    if (rel === '' || rel.startsWith('..')) return false; // never prune the root itself
+
+    // Test both forms: gitignore dir patterns like `build/` only match a path
+    // carrying the trailing slash, while plain patterns match either.
+    const relDir = rel.endsWith('/') ? rel : `${rel}/`;
+    if (this.excludeIg.ignores(rel) || this.excludeIg.ignores(relDir)) return true;
+    if (this.isGitignored(rel) || this.isGitignored(relDir)) return true;
+
+    return false;
+  }
+
   private isBuiltinExcluded(absPath: string, rel: string, sizeBytes: number): boolean {
     if (sizeBytes > this.maxBytes) return true;
 

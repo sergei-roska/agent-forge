@@ -47,6 +47,8 @@ if (!isMainThread) {
       if (entry.isDirectory()) {
         // Skip hidden dirs and common noise dirs early
         if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === '__pycache__') continue;
+        // Prune excluded / gitignored subtrees (dir-level rules only — never include_globs).
+        if (rules.shouldSkipDir(full)) continue;
         walk(full);
       } else if (entry.isFile()) {
         let stat: fs.Stats;
@@ -95,8 +97,9 @@ export async function scanProject(
     if (!entry.isDirectory()) continue;
     if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === '__pycache__') continue;
     const full = path.join(projectRoot, entry.name);
-    // Quick gitignore check at top level
-    if (rules.shouldSkip(full + '/', 0)) continue;
+    // Prune excluded / gitignored top-level dirs (dir-level rules only — the
+    // include allowlist gates files, never directories — see shouldSkipDir).
+    if (rules.shouldSkipDir(full)) continue;
     subtrees.push(full);
   }
 
