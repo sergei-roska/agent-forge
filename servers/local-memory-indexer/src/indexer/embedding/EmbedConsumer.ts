@@ -82,6 +82,8 @@ export interface ConsumerStats {
 
 export class EmbedConsumer {
   private pauseRequested = false;
+  private pausePromise: Promise<void> | null = null;
+  private pauseResolve: (() => void) | null = null;
   private activeBackend: EmbeddingBackend | null = null;
 
   private readonly chunks:  ChunksQueueRepo;
@@ -104,7 +106,25 @@ export class EmbedConsumer {
 
   /** Signal the loop to stop after the current batch completes. */
   requestPause(): void {
+    if (this.pauseRequested) return;
     this.pauseRequested = true;
+    this.activeBackend?.cancel?.();
+    if (!this.pausePromise) {
+      this.pausePromise = new Promise<void>((resolve) => {
+        this.pauseResolve = resolve;
+      });
+    }
+  }
+
+  /** Resolves once pause takes effect (current batch finished or loop exited). */
+  waitForPause(): Promise<void> {
+    return this.pausePromise ?? Promise.resolve();
+  }
+
+  private resolvePauseWaiters(): void {
+    this.pauseResolve?.();
+    this.pauseResolve = null;
+    this.pausePromise = null;
   }
 
   async run(runId: string, opts: ConsumerOptions = {}): Promise<ConsumerStats> {
@@ -172,6 +192,7 @@ export class EmbedConsumer {
       if (this.pauseRequested) {
         this.runs.update(runId, { status: 'paused', updated_at: Date.now() });
         result.paused = true;
+        this.resolvePauseWaiters();
         break;
       }
 
@@ -210,6 +231,13 @@ export class EmbedConsumer {
           updated_at: Date.now(),
         });
         this.stats.incrementVectorCount(this.projectPath, batch.length);
+
+        if (this.pauseRequested) {
+          this.runs.update(runId, { status: 'paused', updated_at: Date.now() });
+          result.paused = true;
+          this.resolvePauseWaiters();
+          break;
+        }
       } catch (err) {
         const ids = batch.map((c) => c.chunk_id);
         this.chunks.markError(ids);
@@ -229,7 +257,15 @@ export class EmbedConsumer {
           log.error('batch failed: DATABASE_LOCKED, interrupting run', { warning_count: result.chunks_errored });
           this.runs.update(runId, { status: 'interrupted', error: errorMsg, updated_at: Date.now() });
           result.interrupted = true;
+          this.resolvePauseWaiters();
           return result;
+        }
+
+        if (this.pauseRequested && errorMsg.includes('Embedding cancelled')) {
+          this.runs.update(runId, { status: 'paused', updated_at: Date.now() });
+          result.paused = true;
+          this.resolvePauseWaiters();
+          break;
         }
 
         log.warn('batch failed', { consecutive: consecutiveErrors, max: maxConsecutiveErrors, error: errorMsg });
@@ -248,6 +284,7 @@ export class EmbedConsumer {
             log.error('backend re-selection failed, interrupting run', { error: fbMsg });
             this.runs.update(runId, { status: 'interrupted', error: fbMsg, updated_at: Date.now() });
             result.interrupted = true;
+            this.resolvePauseWaiters();
             return result;
           }
         }

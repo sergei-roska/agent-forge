@@ -2,7 +2,7 @@ import { getConfig } from '../../config.js';
 import { IndexerError, ErrorCode } from '../../errors/codes.js';
 import { OllamaBackend } from './backends/OllamaBackend.js';
 import { TransformersJsBackend } from './backends/TransformersJsBackend.js';
-import type { EmbeddingBackend } from './EmbeddingBackend.js';
+import type { BackendCapabilities, EmbeddingBackend } from './EmbeddingBackend.js';
 import { rootLogger } from '../../observability/logger.js';
 
 export type BackendOption = 'ollama' | 'transformers_js' | 'auto';
@@ -14,28 +14,30 @@ export interface BackendFactoryOptions {
 
 const log = rootLogger.child({ component: 'EmbeddingBackendFactory' });
 
+function logSelectedBackend(caps: BackendCapabilities, latencyMs: number): void {
+  log.info('embedding backend selected', {
+    backend: caps.name,
+    model: caps.model,
+    gpuAccelerated: caps.gpuAccelerated,
+    dimensions: caps.dimensions,
+    maxBatchSize: caps.maxBatchSize,
+    estimatedThroughput: caps.estimatedThroughput,
+    latencyMs,
+  });
+}
+
 /**
  * Returns the recommended batch size for a given backend type.
- * Smaller first batches improve time-to-first-result and reduce
- * memory pressure during initial model load.
  */
 export function getOptimalBatchSize(backendName: 'ollama' | 'transformers_js'): number {
   switch (backendName) {
     case 'ollama':          return 50;
-    case 'transformers_js': return 25; // CPU memory constrained
+    case 'transformers_js': return 25;
   }
 }
 
 /**
- * Creates the active embedding backend.
- *
- * Selection order:
- *   1. Explicit `backend` parameter.
- *   2. Auto: Ollama reachable + model available → OllamaBackend (health-checked).
- *   3. Auto: fallback → TransformersJsBackend (health-checked).
- *
- * Throws EMBEDDING_BACKEND_UNAVAILABLE if the requested backend is
- * explicitly set but not reachable, or if auto mode finds no healthy backend.
+ * Creates the active embedding backend with health verification and capability reporting.
  */
 export async function createEmbeddingBackend(
   opts: BackendFactoryOptions = {},
@@ -49,11 +51,12 @@ export async function createEmbeddingBackend(
     if (!health.healthy) {
       throw new IndexerError(
         ErrorCode.EMBEDDING_BACKEND_UNAVAILABLE,
-        `Ollama is not reachable at ${cfg.ollamaBaseUrl}. Ensure Ollama is running.`,
-        { backend: 'ollama', url: cfg.ollamaBaseUrl },
+        `Ollama model "${cfg.embedModel}" is not available at ${cfg.ollamaBaseUrl}. Ensure Ollama is running and the model is pulled.`,
+        { backend: 'ollama', url: cfg.ollamaBaseUrl, model: cfg.embedModel },
       );
     }
-    log.info('ollama backend selected (explicit)', { latencyMs: health.latencyMs });
+    const caps = await be.getCapabilities();
+    logSelectedBackend(caps, health.latencyMs);
     return be;
   }
 
@@ -67,7 +70,8 @@ export async function createEmbeddingBackend(
         { backend: 'transformers_js' },
       );
     }
-    log.info('transformers_js backend selected (explicit)', { latencyMs: health.latencyMs });
+    const caps = await be.getCapabilities();
+    logSelectedBackend(caps, health.latencyMs);
     return be;
   }
 
@@ -75,13 +79,17 @@ export async function createEmbeddingBackend(
   const batchSizeOllama = opts.batchSize ?? getOptimalBatchSize('ollama');
   const ollama = new OllamaBackend(cfg.embedModel, cfg.ollamaBaseUrl, batchSizeOllama);
 
-  if (await ollama.isModelAvailable()) {
+  const ollamaAvailable = await ollama.isModelAvailable();
+  if (ollamaAvailable) {
     const health = await ollama.healthCheck();
     if (health.healthy) {
-      log.info('ollama backend selected (auto)', { latencyMs: health.latencyMs, model: cfg.embedModel });
+      const caps = await ollama.getCapabilities();
+      logSelectedBackend(caps, health.latencyMs);
       return ollama;
     }
-    log.warn('ollama model listed but health check failed, falling back to transformers_js');
+    log.warn('ollama model listed but health check failed, falling back to transformers_js', {
+      model: cfg.embedModel,
+    });
   } else {
     log.warn('ollama model not available, falling back to transformers_js', {
       model: cfg.embedModel,
@@ -96,17 +104,32 @@ export async function createEmbeddingBackend(
   if (!tfjsHealth.healthy) {
     throw new IndexerError(
       ErrorCode.EMBEDDING_BACKEND_UNAVAILABLE,
-      'No healthy embedding backend available. Ollama unreachable and @xenova/transformers pipeline failed to load.',
+      'No healthy embedding backend available. Start Ollama with the embedding model pulled, or install @xenova/transformers.',
       { backend: 'auto' },
     );
   }
-  log.info('transformers_js backend selected (auto fallback)', { latencyMs: tfjsHealth.latencyMs });
+  const tfjsCaps = await tfjs.getCapabilities();
+  logSelectedBackend(tfjsCaps, tfjsHealth.latencyMs);
   return tfjs;
 }
 
 /**
+ * Probe backend capabilities without selecting it for a run.
+ * Used by get_indexing_status to report GPU/throughput for the active backend.
+ */
+export async function probeBackendCapabilities(
+  backendName: 'ollama' | 'transformers_js',
+): Promise<BackendCapabilities | null> {
+  try {
+    const backend = await createEmbeddingBackend({ backend: backendName });
+    return backend.getCapabilities();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Embeds a single probe text and returns the vector dimension.
- * Used to configure the LanceDB schema before the first write.
  */
 export async function probeVectorDim(backend: EmbeddingBackend): Promise<number> {
   const vectors = await backend.embed(['probe'], { timeoutMs: 30_000 });

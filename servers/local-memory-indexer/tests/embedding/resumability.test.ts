@@ -7,7 +7,7 @@ import { ChunksQueueRepo } from '../../src/storage/repositories/ChunksQueueRepo.
 import { IndexRunsRepo } from '../../src/storage/repositories/IndexRunsRepo.js';
 import { FingerprintsRepo } from '../../src/storage/repositories/FingerprintsRepo.js';
 import { EmbedConsumer } from '../../src/indexer/embedding/EmbedConsumer.js';
-import type { EmbeddingBackend } from '../../src/indexer/embedding/EmbeddingBackend.js';
+import type { EmbeddingBackend, HealthCheckResult, BackendCapabilities } from '../../src/indexer/embedding/EmbeddingBackend.js';
 import { SCHEMA_VERSION } from '../../src/constants.js';
 import type Database from 'better-sqlite3';
 
@@ -29,7 +29,21 @@ class MockBackend implements EmbeddingBackend {
     return texts.map((t, i) => Array.from({ length: 64 }, (_, j) => (i + j + this.embedCount) * 0.001));
   }
 
-  async healthCheck(): Promise<boolean> { return true; }
+  async healthCheck(): Promise<HealthCheckResult> {
+    return { healthy: true, latencyMs: 1 };
+  }
+
+  async getCapabilities(): Promise<BackendCapabilities> {
+    return {
+      name: 'ollama',
+      model: 'mock',
+      available: true,
+      gpuAccelerated: false,
+      maxBatchSize: this.batchSize,
+      dimensions: 64,
+      estimatedThroughput: 'test',
+    };
+  }
 }
 
 function seedChunks(repo: ChunksQueueRepo, projectPath: string, count: number): string[] {
@@ -173,13 +187,32 @@ describe('EmbedConsumer — resumability', () => {
     const backend = new MockBackend(2);
     const consumer = new EmbedConsumer(db, projectDir, backend);
 
-    // Request pause immediately — consumer will complete current batch then stop
     consumer.requestPause();
-    const stats = await consumer.run('run-8', { enrich: false });
+    const pauseWait = consumer.waitForPause();
+    const runPromise = consumer.run('run-8', { enrich: false });
+    await pauseWait;
+    const stats = await runPromise;
 
     expect(stats.paused).toBe(true);
-    // At most one batch (batchSize=2) was processed before the pause check
     expect(stats.chunks_embedded).toBeLessThanOrEqual(2);
     expect(runsRepo.getById('run-8')?.status).toBe('paused');
+  });
+
+  it('waitForPause resolves when pause is acknowledged', async () => {
+    seedChunks(chunksRepo, projectDir, 6);
+    runsRepo.create({ run_id: 'run-9', project_path: projectDir, status: 'running', started_at: Date.now() });
+
+    const backend = new MockBackend(2);
+    const consumer = new EmbedConsumer(db, projectDir, backend);
+
+    consumer.requestPause();
+    const pauseWait = consumer.waitForPause();
+    const runPromise = consumer.run('run-9', { enrich: false });
+    await pauseWait;
+    const stats = await runPromise;
+
+    expect(stats.paused).toBe(true);
+    expect(stats.chunks_embedded).toBeLessThanOrEqual(2);
+    expect(runsRepo.getById('run-9')?.status).toBe('paused');
   });
 });

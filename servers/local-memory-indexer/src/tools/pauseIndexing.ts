@@ -19,7 +19,7 @@ export function makePauseIndexingTool(coordinator: RunCoordinator): ToolDefiniti
       const { run_id } = parsed.data;
 
       try {
-        const result = coordinator.pause(run_id);
+        const result = await coordinator.pause(run_id);
 
         if (result.status === 'not_found') {
           return err(ErrorCode.RUN_NOT_FOUND, result.message, { run_id });
@@ -28,7 +28,7 @@ export function makePauseIndexingTool(coordinator: RunCoordinator): ToolDefiniti
         const summary =
           result.status === 'already_paused'
             ? `Run "${run_id}" is already paused.`
-            : `Pause requested for run "${run_id}". Current batch will complete first. ${result.chunks_embedded_so_far} embedded, ${result.chunks_remaining} remaining.`;
+            : `Run "${run_id}" paused. ${result.chunks_embedded_so_far} embedded, ${result.chunks_remaining} remaining. Resume with start_indexing or resume_indexing.`;
 
         return ok(summary, result);
       } catch (e) {

@@ -8,12 +8,14 @@ import { scanProject } from './scanner/FileScanner.js';
 import { FingerprintDiffer } from './scanner/FingerprintDiffer.js';
 import { ChunkerDispatcher } from './chunking/ChunkerDispatcher.js';
 import { EmbedConsumer } from './embedding/EmbedConsumer.js';
-import { probeVectorDim, createEmbeddingBackend } from './embedding/EmbeddingBackendFactory.js';
+import { probeVectorDim, createEmbeddingBackend, probeBackendCapabilities } from './embedding/EmbeddingBackendFactory.js';
 import { IvfRebuild } from './optimization/IvfRebuild.js';
 import { ConcurrencyLock } from './ConcurrencyLock.js';
+import { getConfig } from '../config.js';
 import { SCHEMA_VERSION } from '../constants.js';
 import type { StartIndexingInput, StartIndexingOutput } from '../contracts/startIndexing.schema.js';
 import type { PauseIndexingOutput } from '../contracts/pauseIndexing.schema.js';
+import type { ResumeIndexingOutput } from '../contracts/resumeIndexing.schema.js';
 import type { GetIndexingStatusOutput } from '../contracts/getIndexingStatus.schema.js';
 import { IndexerError, ErrorCode } from '../errors/codes.js';
 import { rootLogger } from '../observability/logger.js';
@@ -107,17 +109,17 @@ export class RunCoordinator {
     };
   }
 
-  pause(runId: string): PauseIndexingOutput {
+  async pause(runId: string): Promise<PauseIndexingOutput> {
     const consumer    = this.activeConsumers.get(runId);
     const projectPath = this.runProjectIndex.get(runId);
 
-    if (!consumer || !projectPath) {
+    if (!projectPath) {
       return {
         run_id:                runId,
         status:                'not_found',
         chunks_embedded_so_far: 0,
         chunks_remaining:       0,
-        message:               `No active run found for run_id: ${runId}`,
+        message:               `No run found for run_id: ${runId}`,
       };
     }
 
@@ -127,21 +129,124 @@ export class RunCoordinator {
     const pending  = new ChunksQueueRepo(db).countPending(projectPath);
     db.close();
 
-    if (run?.status === 'paused') {
-      return { run_id: runId, status: 'already_paused', chunks_embedded_so_far: embedded, chunks_remaining: pending, message: 'Run is already paused.' };
+    if (!run) {
+      return {
+        run_id: runId,
+        status: 'not_found',
+        chunks_embedded_so_far: 0,
+        chunks_remaining: pending,
+        message: `No run found for run_id: ${runId}`,
+      };
+    }
+
+    if (run.status === 'paused') {
+      return {
+        run_id: runId,
+        status: 'already_paused',
+        chunks_embedded_so_far: embedded,
+        chunks_remaining: pending,
+        message: 'Run is already paused.',
+      };
+    }
+
+    if (!consumer) {
+      if (run.status === 'running' && run.phase === 'embedding') {
+        const pauseDb = openDb(projectPath);
+        new IndexRunsRepo(pauseDb).update(runId, { status: 'paused', updated_at: Date.now() });
+        pauseDb.close();
+      }
+      return {
+        run_id: runId,
+        status: run.status === 'paused' ? 'already_paused' : 'paused',
+        chunks_embedded_so_far: embedded,
+        chunks_remaining: pending,
+        message: 'Run marked paused. Resume with start_indexing or resume_indexing.',
+      };
     }
 
     consumer.requestPause();
+    await consumer.waitForPause();
+
+    const db2 = openDb(projectPath);
+    const updated = new IndexRunsRepo(db2).getById(runId);
+    const embeddedNow = updated?.chunks_embedded ?? embedded;
+    const pendingNow  = new ChunksQueueRepo(db2).countPending(projectPath);
+    db2.close();
+
     return {
       run_id:                 runId,
-      status:                 'pausing',
-      chunks_embedded_so_far: embedded,
-      chunks_remaining:       pending,
-      message:                'Pause requested. Current batch will complete before stopping.',
+      status:                 'paused',
+      chunks_embedded_so_far: embeddedNow,
+      chunks_remaining:       pendingNow,
+      message:                'Embedding paused after current batch. Resume with start_indexing or resume_indexing.',
     };
   }
 
-  getStatus(runId?: string, projectPath?: string): GetIndexingStatusOutput {
+  async resume(runId: string, projectPath?: string): Promise<ResumeIndexingOutput> {
+    let resolvedProject = projectPath ?? this.runProjectIndex.get(runId) ?? getConfig().defaultProjectPath;
+
+    const db = openDb(resolvedProject);
+    let run = new IndexRunsRepo(db).getById(runId);
+    db.close();
+
+    if (!run && projectPath == null) {
+      throw new IndexerError(
+        ErrorCode.RUN_NOT_FOUND,
+        `No run found for run_id: ${runId}. Provide project_path to resume after restart.`,
+      );
+    }
+
+    if (!run) {
+      throw new IndexerError(ErrorCode.RUN_NOT_FOUND, `No run found for run_id: ${runId} in ${resolvedProject}`);
+    }
+
+    resolvedProject = run.project_path;
+
+    const db2 = openDb(resolvedProject);
+    const pending = new ChunksQueueRepo(db2).countPending(resolvedProject);
+    db2.close();
+
+    if (run.status !== 'paused') {
+      return {
+        run_id: runId,
+        status: 'not_paused',
+        project_path: resolvedProject,
+        chunks_remaining: pending,
+        message: `Run is "${run.status ?? 'unknown'}", not paused. Use start_indexing to begin a new run.`,
+      };
+    }
+
+    const startResult = await this.start({
+      project_path: resolvedProject,
+      phases: ['embedding'],
+      force: false,
+      max_file_size_kb: 512,
+      batch_size: 100,
+      enrich: true,
+      backend: 'auto',
+      priority: 'background',
+    });
+
+    if (startResult.status === 'already_running') {
+      return {
+        run_id: startResult.run_id,
+        status: 'already_running',
+        project_path: resolvedProject,
+        chunks_remaining: pending,
+        message: startResult.message,
+      };
+    }
+
+    return {
+      run_id: startResult.run_id,
+      status: 'resumed',
+      project_path: resolvedProject,
+      chunks_remaining: pending,
+      message: `Embedding resumed (new run_id: ${startResult.run_id}). ${pending} chunks pending.`,
+    };
+  }
+
+  async getStatus(runId?: string, projectPath?: string): Promise<GetIndexingStatusOutput> {
     // Resolve projectPath from in-memory index or from SQLite
     let resolvedProject = projectPath;
     let resolvedRunId   = runId;
@@ -192,6 +297,28 @@ export class RunCoordinator {
 
     db.close();
 
+    let backend_capabilities: GetIndexingStatusOutput['backend_capabilities'];
+    if (run.backend_used === 'ollama' || run.backend_used === 'transformers_js') {
+      const caps = await probeBackendCapabilities(run.backend_used);
+      if (caps) {
+        backend_capabilities = {
+          name: caps.name,
+          model: caps.model,
+          gpu_accelerated: caps.gpuAccelerated,
+          max_batch_size: caps.maxBatchSize,
+          dimensions: caps.dimensions,
+          estimated_throughput: caps.estimatedThroughput,
+        };
+      }
+    }
+
+    const phaseDetail =
+      run.phase === 'embedding'
+        ? `Embedding ${embedded}/${total} chunks (${run.backend_used ?? 'auto'})`
+        : run.phase === 'discovery'
+          ? `Scanning files ${run.files_parsed ?? 0}/${run.files_discovered ?? 0}`
+          : undefined;
+
     return {
       run_id:        resolvedRunId,
       project_path:  resolvedProject,
@@ -208,8 +335,10 @@ export class RunCoordinator {
         progress_bar:            buildProgressBar(percent),
         eta_seconds:             eta,
         throughput_chunks_per_sec: Math.round(throughput * 10) / 10,
+        phase_detail:            phaseDetail,
       },
       backend_used:   run.backend_used ?? undefined,
+      backend_capabilities,
       enrich_enabled: undefined,
       started_at:     run.started_at ? new Date(run.started_at).toISOString() : '',
       updated_at:     run.updated_at ? new Date(run.updated_at).toISOString() : '',

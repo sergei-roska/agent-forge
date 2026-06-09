@@ -22,6 +22,16 @@ export interface IndexingProgress {
   progress_bar: string;
   eta_seconds: number;
   throughput_chunks_per_sec: number;
+  phase_detail?: string;
+}
+
+export interface BackendCapabilitiesOutput {
+  name: 'ollama' | 'transformers_js';
+  model: string;
+  gpu_accelerated: boolean;
+  max_batch_size: number;
+  dimensions: number;
+  estimated_throughput: string;
 }
 
 export interface GetIndexingStatusOutput {
@@ -31,6 +41,7 @@ export interface GetIndexingStatusOutput {
   status: 'running' | 'paused' | 'completed' | 'interrupted' | 'error';
   progress: IndexingProgress;
   backend_used?: string;
+  backend_capabilities?: BackendCapabilitiesOutput;
   enrich_enabled?: boolean;
   started_at: string;
   updated_at: string;

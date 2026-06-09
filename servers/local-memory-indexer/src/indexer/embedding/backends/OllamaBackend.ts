@@ -1,5 +1,11 @@
 import { DEFAULT_BATCH_SIZE_OLLAMA } from '../../../constants.js';
-import type { EmbeddingBackend, EmbedOptions, HealthCheckResult } from '../EmbeddingBackend.js';
+import type {
+  EmbeddingBackend,
+  EmbedOptions,
+  HealthCheckResult,
+  BackendCapabilities,
+  ModelVerificationResult,
+} from '../EmbeddingBackend.js';
 
 export class OllamaBackend implements EmbeddingBackend {
   readonly name = 'ollama' as const;
@@ -14,7 +20,7 @@ export class OllamaBackend implements EmbeddingBackend {
   }
 
   async embed(texts: string[], opts?: EmbedOptions): Promise<number[][]> {
-    const timeoutMs = opts?.timeoutMs ?? 60_000; // 60s per batch default
+    const timeoutMs = opts?.timeoutMs ?? 60_000;
     const url = `${this.baseUrl}/api/embed`;
 
     const res = await fetch(url, {
@@ -36,30 +42,74 @@ export class OllamaBackend implements EmbeddingBackend {
     return json.embeddings;
   }
 
-  async healthCheck(): Promise<HealthCheckResult> {
-    const start = Date.now();
+  /** Returns true if Ollama is reachable AND the target model is listed. */
+  async isModelAvailable(): Promise<boolean> {
+    const verification = await this.verifyModelLoaded({ warmup: false });
+    return verification.loaded;
+  }
+
+  /**
+   * Verifies the configured model is listed and optionally warms it up
+   * with a test embedding (confirms the model can actually produce vectors).
+   */
+  async verifyModelLoaded(opts: { warmup?: boolean } = {}): Promise<ModelVerificationResult> {
+    const warmup = opts.warmup ?? true;
     try {
       const res = await fetch(`${this.baseUrl}/api/tags`, { signal: AbortSignal.timeout(5000) });
-      if (!res.ok) return { healthy: false, latencyMs: -1 };
-      const json = (await res.json()) as { models?: { name: string }[] };
-      if (!Array.isArray(json.models)) return { healthy: false, latencyMs: -1 };
-      // Accept if Ollama is reachable — model may still be loading
-      return { healthy: true, latencyMs: Date.now() - start };
+      if (!res.ok) return { loaded: false };
+
+      const json = (await res.json()) as { models?: { name: string; size?: number; digest?: string }[] };
+      const models = json.models ?? [];
+      const baseName = this.model.split(':')[0] ?? this.model;
+      const targetModel = models.find(
+        (m) => m.name === this.model || m.name.startsWith(`${baseName}:`) || m.name.startsWith(baseName),
+      );
+
+      if (!targetModel) return { loaded: false };
+
+      if (!warmup) {
+        return {
+          loaded: true,
+          modelInfo: { name: targetModel.name, size: targetModel.size, digest: targetModel.digest },
+        };
+      }
+
+      const vectors = await this.embed(['warmup test'], { timeoutMs: 10_000 });
+      const dimensions = vectors[0]?.length;
+
+      return {
+        loaded: true,
+        modelInfo: {
+          name: targetModel.name,
+          size: targetModel.size,
+          digest: targetModel.digest,
+          dimensions,
+        },
+      };
     } catch {
-      return { healthy: false, latencyMs: -1 };
+      return { loaded: false };
     }
   }
 
-  /** Returns true if Ollama is reachable AND the target model is listed. */
-  async isModelAvailable(): Promise<boolean> {
-    try {
-      const res = await fetch(`${this.baseUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
-      if (!res.ok) return false;
-      const json = (await res.json()) as { models?: { name: string }[] };
-      const name = this.model.includes(':') ? this.model : `${this.model}:latest`;
-      return json.models?.some((m) => m.name === name || m.name.startsWith(this.model)) ?? false;
-    } catch {
-      return false;
-    }
+  async healthCheck(): Promise<HealthCheckResult> {
+    const start = Date.now();
+    const verification = await this.verifyModelLoaded({ warmup: true });
+    if (!verification.loaded) return { healthy: false, latencyMs: -1 };
+    return { healthy: true, latencyMs: Date.now() - start };
+  }
+
+  async getCapabilities(): Promise<BackendCapabilities> {
+    const modelCheck = await this.verifyModelLoaded({ warmup: false });
+    const dimensions = modelCheck.modelInfo?.dimensions ?? 1024;
+
+    return {
+      name: 'ollama',
+      model: this.model,
+      available: modelCheck.loaded,
+      gpuAccelerated: true,
+      maxBatchSize: this.batchSize,
+      dimensions,
+      estimatedThroughput: modelCheck.loaded ? '~500 chunks/min' : 'unavailable',
+    };
   }
 }

@@ -9,7 +9,7 @@ export type PauseIndexingInput = z.infer<typeof PauseIndexingInputSchema>;
 
 export interface PauseIndexingOutput {
   run_id: string;
-  status: 'pausing' | 'already_paused' | 'not_found';
+  status: 'paused' | 'already_paused' | 'not_found';
   chunks_embedded_so_far: number;
   chunks_remaining: number;
   message: string;

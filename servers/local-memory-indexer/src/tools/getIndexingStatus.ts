@@ -29,7 +29,7 @@ export function makeGetIndexingStatusTool(coordinator: RunCoordinator): ToolDefi
       }
 
       try {
-        const status = coordinator.getStatus(run_id, project_path);
+        const status = await coordinator.getStatus(run_id, project_path);
 
         const { phase, status: runStatus, progress } = status;
         const summary =
