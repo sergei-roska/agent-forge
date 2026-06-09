@@ -1,5 +1,11 @@
 export const SCHEMA_VERSION = '1.0';
 
+/** Minimum schema_version the indexer will tolerate in an existing table. */
+export const MIN_COMPATIBLE_SCHEMA_VERSION = '1.0';
+
+/** Field name used in both SQLite chunks_queue and LanceDB chunks table. */
+export const SCHEMA_VERSION_FIELD = 'schema_version';
+
 export const DEFAULT_EMBED_MODEL = 'qwen3-embedding:8b';
 export const DEFAULT_ENRICH_MODEL = 'granite4:3b-h';
 

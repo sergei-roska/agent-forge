@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { withImmediate } from '../sqlite.js';
+import { SCHEMA_VERSION } from '../../constants.js';
 
 export interface ChunkQueueRow {
   chunk_id: string;
@@ -24,6 +25,24 @@ export class ChunksQueueRepo {
 
   insertBatch(chunks: ChunkQueueRow[]): void {
     if (chunks.length === 0) return;
+
+    // Validate schema_version on every chunk before writing to SQLite.
+    for (const chunk of chunks) {
+      if (!chunk.schema_version) {
+        throw new Error(
+          `Chunk ${chunk.chunk_id} is missing required field 'schema_version'. ` +
+            'All chunkers must set schema_version = SCHEMA_VERSION.',
+        );
+      }
+      if (chunk.schema_version !== SCHEMA_VERSION) {
+        console.warn(
+          `[schema_version] Chunk ${chunk.chunk_id} has schema_version='${
+            chunk.schema_version
+          }', expected '${SCHEMA_VERSION}'. Possible version drift.`,
+        );
+      }
+    }
+
     const stmt = this.db.prepare(
       `INSERT INTO chunks_queue
         (chunk_id, project_path, file_path, start_line, end_line,
