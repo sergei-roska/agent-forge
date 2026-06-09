@@ -89,4 +89,22 @@ export class FingerprintsRepo {
       )
       .run(status, projectPath, filePath);
   }
+
+  listByProject(projectPath: string): FileFingerprint[] {
+    return this.db
+      .prepare('SELECT * FROM file_fingerprints WHERE project_path = ?')
+      .all(projectPath) as FileFingerprint[];
+  }
+
+  deleteByFilePaths(projectPath: string, filePaths: string[]): void {
+    if (filePaths.length === 0) return;
+    const placeholders = filePaths.map(() => '?').join(', ');
+    withImmediate(this.db, () => {
+      this.db
+        .prepare(
+          `DELETE FROM file_fingerprints WHERE project_path = ? AND file_path IN (${placeholders})`,
+        )
+        .run(projectPath, ...filePaths);
+    });
+  }
 }

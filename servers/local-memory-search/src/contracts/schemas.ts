@@ -137,6 +137,6 @@ export const IndexStatusSchema = z.object(indexStatusShape);
 // ── doctor_index (§4.4) ──────────────────────────────────────────────────────
 export const doctorIndexShape = {
   project_path: projectPath,
-  auto_fix: z.boolean().default(false).describe('Ignored: the read-only service never mutates the index.'),
+  auto_fix: z.boolean().default(false).describe('Read-only here. Use Indexer doctor_index with auto_fix=true to repair.'),
 } as const;
 export const DoctorIndexSchema = z.object(doctorIndexShape);

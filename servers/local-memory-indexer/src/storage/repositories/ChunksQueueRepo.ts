@@ -157,6 +157,51 @@ export class ChunksQueueRepo {
     return row.n;
   }
 
+  countAll(projectPath: string): number {
+    const row = this.db
+      .prepare(`SELECT COUNT(*) as n FROM chunks_queue WHERE project_path = ?`)
+      .get(projectPath) as { n: number };
+    return row.n;
+  }
+
+  getEmbeddedIds(projectPath: string, limit = 500): string[] {
+    const rows = this.db
+      .prepare(
+        `SELECT chunk_id FROM chunks_queue
+         WHERE project_path = ? AND embedding_status = 'embedded'
+         LIMIT ?`,
+      )
+      .all(projectPath, limit) as { chunk_id: string }[];
+    return rows.map((r) => r.chunk_id);
+  }
+
+  markPending(chunkIds: string[]): void {
+    if (chunkIds.length === 0) return;
+    const now = Date.now();
+    const placeholders = chunkIds.map(() => '?').join(', ');
+    withImmediate(this.db, () => {
+      this.db
+        .prepare(
+          `UPDATE chunks_queue
+           SET embedding_status = 'pending', updated_at = ?
+           WHERE chunk_id IN (${placeholders})`,
+        )
+        .run(now, ...chunkIds);
+    });
+  }
+
+  deleteByFilePaths(projectPath: string, filePaths: string[]): void {
+    if (filePaths.length === 0) return;
+    const placeholders = filePaths.map(() => '?').join(', ');
+    withImmediate(this.db, () => {
+      this.db
+        .prepare(
+          `DELETE FROM chunks_queue WHERE project_path = ? AND file_path IN (${placeholders})`,
+        )
+        .run(projectPath, ...filePaths);
+    });
+  }
+
   setEnrichedText(chunkId: string, enrichedText: string): void {
     const now = Date.now();
     this.db

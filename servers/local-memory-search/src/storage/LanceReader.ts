@@ -276,4 +276,42 @@ export class LanceReader {
     )) as Record<string, unknown>[];
     return [...new Set(rows.map((r) => String(r['schema_version'])))];
   }
+
+  /** Distinct file_path values for a project (doctor stale-chunk check). */
+  async distinctFilePaths(where: string): Promise<string[]> {
+    const rows = (await withReadLockRetry(() =>
+      this.table.query().where(where).select(['file_path']).limit(10_000).toArray(),
+    )) as Record<string, unknown>[];
+    return [...new Set(rows.map((r) => String(r['file_path'] ?? '')).filter(Boolean))];
+  }
+
+  /** Returns chunk_ids from LanceDB that exist in the given id list. */
+  async filterExistingChunkIds(where: string, chunkIds: string[]): Promise<Set<string>> {
+    if (chunkIds.length === 0) return new Set();
+    const safeIds = chunkIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ');
+    const rows = (await withReadLockRetry(() =>
+      this.table
+        .query()
+        .where(`${where} AND chunk_id IN (${safeIds})`)
+        .select(['chunk_id'])
+        .limit(chunkIds.length)
+        .toArray(),
+    )) as Record<string, unknown>[];
+    return new Set(rows.map((r) => String(r['chunk_id'])));
+  }
+
+  /** Sample chunk_ids from LanceDB (doctor vector consistency). */
+  async sampleChunkIds(where: string, limit: number): Promise<string[]> {
+    const rows = (await withReadLockRetry(() =>
+      this.table.query().where(where).select(['chunk_id']).limit(limit).toArray(),
+    )) as Record<string, unknown>[];
+    return rows.map((r) => String(r['chunk_id']));
+  }
+
+  /** Raw query for doctor diagnostics (selected columns only). */
+  async queryRaw(where: string, columns: string[], limit: number): Promise<Record<string, unknown>[]> {
+    return withReadLockRetry(() =>
+      this.table.query().where(where).select(columns).limit(limit).toArray(),
+    ) as Promise<Record<string, unknown>[]>;
+  }
 }

@@ -12,6 +12,7 @@ import { validateProject } from './shared.js';
 import { buildWherePredicate } from '../storage/filters.js';
 import { LanceReader } from '../storage/LanceReader.js';
 import { SqliteReader } from '../storage/SqliteReader.js';
+import { doctorIndex, summarizeDoctor } from '../health/doctor.js';
 import { CONTRACT_VERSION, SCHEMA_VERSION, DEFAULT_TOP_K_CANDIDATES } from '../constants.js';
 
 const startedAt = Date.now();
@@ -85,6 +86,18 @@ export function makeHealthCheckTool(engine: SearchEngine): ToolDefinition {
             `EMBEDDING_IN_PROGRESS: ${pendingChunks} chunk(s) pending embedding. ` +
               'Search operates in partial mode; results will improve as embedding continues.',
           );
+        }
+
+        const doctor = await doctorIndex({
+          projectPath: proj.path,
+          lance,
+          sqlite,
+        });
+        data['index_diagnostics'] = summarizeDoctor(doctor);
+        if (!doctor.healthy) {
+          for (const issue of doctor.issues) {
+            warnings.push(`[DOCTOR] ${issue.message}`);
+          }
         }
       }
 
@@ -178,85 +191,26 @@ export function makeDoctorIndexTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'doctor_index',
     description:
-      'Diagnose inconsistencies between LanceDB schema_version, the FTS index, and SQLite fingerprints. Read-only: returns suggested actions but never modifies the index.',
+      'Diagnose index consistency across LanceDB, SQLite, FTS, and schema_version. Read-only on this service; use auto_fix on the Indexer doctor_index to repair.',
     inputSchema: doctorIndexShape,
     handler: async (raw) => {
       const a = DoctorIndexSchema.parse(raw);
       const proj = validateProject(a.project_path);
       if ('error' in proj) return proj.error;
 
-      const checks: { name: string; ok: boolean; detail: string }[] = [];
-      const issues: string[] = [];
-      const suggested: string[] = [];
-
       const lance = await engine.lance(proj.path);
       const sqlite = engine.sqlite(proj.path);
+      const result = await doctorIndex({ projectPath: proj.path, lance, sqlite });
 
-      // 1. LanceDB reachable
-      checks.push({ name: 'lancedb_reachable', ok: lance !== null, detail: lance ? 'open' : 'not found / unopenable' });
-      if (!lance) {
-        issues.push('LanceDB index unavailable.');
-        suggested.push('Run start_indexing to build the vector index.');
-      }
+      const note = a.auto_fix
+        ? 'auto_fix is read-only here. Run doctor_index with auto_fix=true on the Indexer service to apply repairs.'
+        : undefined;
 
-      // 2. SQLite state present
-      checks.push({ name: 'sqlite_state_present', ok: sqlite !== null, detail: sqlite ? 'open (read-only)' : 'missing' });
-
-      const where = buildWherePredicate(proj.path);
-
-      // 3. Schema-version consistency
-      if (lance) {
-        const versions = await lance.distinctSchemaVersions(proj.path).catch(() => []);
-        const stale = versions.filter((v) => v !== SCHEMA_VERSION);
-        const consistent = stale.length === 0;
-        checks.push({
-          name: 'schema_version_consistent',
-          ok: consistent,
-          detail: consistent ? `all rows at '${SCHEMA_VERSION}'` : `stale versions present: ${JSON.stringify(stale)}`,
-        });
-        if (!consistent) {
-          issues.push(`Stale schema versions found: ${stale.join(', ')}.`);
-          suggested.push('Run delete_project_index then start_indexing with force=true (Indexer service).');
-        }
-      }
-
-      // 4. FTS index presence (probe)
-      if (lance) {
-        let ftsOk = false;
-        try {
-          await lance.ftsSearch('probe', where, 1);
-          ftsOk = true;
-        } catch {
-          ftsOk = false;
-        }
-        checks.push({ name: 'fts_index_present', ok: ftsOk, detail: ftsOk ? 'queryable' : 'missing — falling back to SQLite LIKE' });
-        if (!ftsOk) {
-          issues.push('FTS index missing; keyword search degrades to SQLite LIKE.');
-          suggested.push('Trigger FTS index creation from the Indexer service (read-only service cannot build it).');
-        }
-      }
-
-      // 5. Vector-count drift
-      if (lance && sqlite) {
-        const declared = sqlite.stats(proj.path).vector_count;
-        const compatible = await lance.count(where).catch(() => 0);
-        const drift = declared > 0 ? Math.abs(declared - compatible) / declared : 0;
-        checks.push({
-          name: 'vector_count_consistent',
-          ok: drift <= 0.1,
-          detail: `declared=${declared}, compatible=${compatible}, drift=${round(drift)}`,
-        });
-        if (drift > 0.1) {
-          issues.push(`Vector-count drift ${Math.round(drift * 100)}% between SQLite stats and LanceDB.`);
-          suggested.push('Re-run start_indexing to reconcile counts.');
-        }
-      }
-
-      const healthy = issues.length === 0;
       return ok(
-        healthy ? `Index healthy for '${proj.path}' (${checks.length} checks passed).`
-                : `${issues.length} issue(s) found for '${proj.path}'.`,
-        { healthy, checks, issues, auto_fixed: [], suggested_actions: suggested, note: a.auto_fix ? 'auto_fix ignored: search service is read-only.' : undefined },
+        result.healthy
+          ? `Index healthy for '${proj.path}' (${result.checks.length} checks passed).`
+          : `${result.issues.length} issue(s) found for '${proj.path}'.`,
+        { ...result, note },
       );
     },
   };

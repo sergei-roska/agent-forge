@@ -127,11 +127,19 @@ describe('diagnostics', () => {
     expect(data.compatible_vectors).toBe(3);
   });
 
-  it('doctor_index returns checks and never mutates', async () => {
+  it('doctor_index returns structured checks (read-only, no auto_fix)', async () => {
     const res = await call('doctor_index', { project_path: PROJECT, auto_fix: true });
-    const data = res.data as { healthy: boolean; checks: unknown[]; auto_fixed: unknown[] };
+    const data = res.data as {
+      healthy: boolean;
+      checks: { name: string; status: string }[];
+      auto_fixed: unknown[];
+      note?: string;
+    };
     expect(Array.isArray(data.checks)).toBe(true);
+    expect(data.checks.length).toBeGreaterThanOrEqual(5);
+    expect(data.checks[0]).toHaveProperty('status');
     expect(data.auto_fixed).toHaveLength(0);
+    expect(data.note).toMatch(/read-only/i);
   });
 
   it('explain_match breaks down the score for a returned chunk', async () => {

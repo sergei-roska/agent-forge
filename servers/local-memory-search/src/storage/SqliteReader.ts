@@ -215,6 +215,45 @@ export class SqliteReader {
     return row.n;
   }
 
+  countAllChunks(projectPath: string): number {
+    const row = this.db
+      .prepare(`SELECT COUNT(*) AS n FROM chunks_queue WHERE project_path = ?`)
+      .get(projectPath) as { n: number };
+    return row.n;
+  }
+
+  distinctSchemaVersions(projectPath: string): string[] {
+    const rows = this.db
+      .prepare(
+        `SELECT DISTINCT schema_version FROM chunks_queue
+         WHERE project_path = ? AND schema_version IS NOT NULL`,
+      )
+      .all(projectPath) as { schema_version: string }[];
+    return rows.map((r) => r.schema_version);
+  }
+
+  getEmbeddedChunkIds(projectPath: string, limit = 500): string[] {
+    const rows = this.db
+      .prepare(
+        `SELECT chunk_id FROM chunks_queue
+         WHERE project_path = ? AND embedding_status = 'embedded'
+         LIMIT ?`,
+      )
+      .all(projectPath, limit) as { chunk_id: string }[];
+    return rows.map((r) => r.chunk_id);
+  }
+
+  getEmbeddingStatusMap(chunkIds: string[]): Map<string, string> {
+    if (chunkIds.length === 0) return new Map();
+    const placeholders = chunkIds.map(() => '?').join(', ');
+    const rows = this.db
+      .prepare(
+        `SELECT chunk_id, embedding_status FROM chunks_queue WHERE chunk_id IN (${placeholders})`,
+      )
+      .all(...chunkIds) as { chunk_id: string; embedding_status: string | null }[];
+    return new Map(rows.map((r) => [r.chunk_id, r.embedding_status ?? '']));
+  }
+
   /** Guard: prove read-only enforcement (Spec 08.2 §6 Read-Only Enforcement test). */
   assertNoWrite(operation: string): never {
     throw new ReadOnlyViolationError(`SQLite.${operation}`);
