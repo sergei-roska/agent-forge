@@ -1,5 +1,5 @@
 import { DEFAULT_BATCH_SIZE_TRANSFORMERS } from '../../../constants.js';
-import type { EmbeddingBackend } from '../EmbeddingBackend.js';
+import type { EmbeddingBackend, EmbedOptions, HealthCheckResult } from '../EmbeddingBackend.js';
 
 // Xenova/multilingual-e5-large → 1024-dim, good multilingual quality, ~560 MB.
 // Change via TRANSFORMERS_MODEL env var.
@@ -32,7 +32,10 @@ export class TransformersJsBackend implements EmbeddingBackend {
     return this.pipeline;
   }
 
-  async embed(texts: string[]): Promise<number[][]> {
+  // EmbedOptions.timeoutMs is intentionally unused here: the pipeline runs
+  // locally and AbortSignal cannot interrupt synchronous ONNX inference.
+  // Keeping the signature compatible for uniform call sites.
+  async embed(texts: string[], _opts?: EmbedOptions): Promise<number[][]> {
     const pipe = await this.getPipeline();
     const results: number[][] = [];
 
@@ -45,12 +48,13 @@ export class TransformersJsBackend implements EmbeddingBackend {
     return results;
   }
 
-  async healthCheck(): Promise<boolean> {
+  async healthCheck(): Promise<HealthCheckResult> {
+    const start = Date.now();
     try {
       await this.getPipeline();
-      return true;
+      return { healthy: true, latencyMs: Date.now() - start };
     } catch {
-      return false;
+      return { healthy: false, latencyMs: -1 };
     }
   }
 }

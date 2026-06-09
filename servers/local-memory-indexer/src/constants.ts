@@ -3,7 +3,7 @@ export const SCHEMA_VERSION = '1.0';
 export const DEFAULT_EMBED_MODEL = 'qwen3-embedding:8b';
 export const DEFAULT_ENRICH_MODEL = 'granite4:3b-h';
 
-export const DEFAULT_BATCH_SIZE_OLLAMA = 100;
+export const DEFAULT_BATCH_SIZE_OLLAMA = 50;
 export const DEFAULT_BATCH_SIZE_TRANSFORMERS = 50;
 
 export const DEFAULT_MAX_FILE_SIZE_KB = 512;

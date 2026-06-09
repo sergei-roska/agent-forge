@@ -165,6 +165,9 @@ export class EmbedConsumer {
     });
 
     // ── Main loop ────────────────────────────────────────────────────────────
+    const maxConsecutiveErrors = 3;
+    let consecutiveErrors = 0;
+
     while (true) {
       if (this.pauseRequested) {
         this.runs.update(runId, { status: 'paused', updated_at: Date.now() });
@@ -175,14 +178,22 @@ export class EmbedConsumer {
       const batch = this.chunks.getPendingBatch(this.projectPath, batchSize);
       if (batch.length === 0) break; // all embedded
 
+      log.info('processing batch', {
+        batch_size: batch.length,
+        batches_processed: result.batches_processed,
+        chunks_embedded_so_far: result.chunks_embedded,
+        backend: backend.name,
+      });
+
       try {
         const enrichResults = await this.enrichBatch(batch, enricher);
-        const vectors       = await this.embedBatch(batch, enrichResults, backend);
+        const vectors       = await this.embedBatch(batch, enrichResults, backend, { timeoutMs: 60_000 });
         await this.upsertBatch(table, batch, vectors, enrichResults);
         this.markEmbedded(batch, result.chunks_embedded);
 
         result.chunks_embedded    += batch.length;
         result.batches_processed  += 1;
+        consecutiveErrors = 0;
 
         const elapsedSec = (Date.now() - runStart) / 1000;
         const throughput = elapsedSec > 0 ? Math.round(result.chunks_embedded / elapsedSec * 10) / 10 : 0;
@@ -204,6 +215,7 @@ export class EmbedConsumer {
         this.chunks.markError(ids);
         result.chunks_errored += batch.length;
         result.batches_processed += 1;
+        consecutiveErrors++;
 
         const errorMsg = err instanceof Error ? err.message : String(err);
         const warnings = JSON.parse(
@@ -219,8 +231,26 @@ export class EmbedConsumer {
           result.interrupted = true;
           return result;
         }
-        // Other errors: log and continue
-        log.warn('batch failed, continuing', { warning_count: result.chunks_errored, error: errorMsg });
+
+        log.warn('batch failed', { consecutive: consecutiveErrors, max: maxConsecutiveErrors, error: errorMsg });
+
+        // Too many consecutive failures → attempt backend re-selection
+        if (consecutiveErrors >= maxConsecutiveErrors) {
+          log.warn('max consecutive errors reached, attempting backend re-selection via auto');
+          try {
+            backend = await createEmbeddingBackend({ backend: 'auto' });
+            this.activeBackend = backend;
+            result.backend_used = backend.name;
+            consecutiveErrors = 0;
+            log.info('backend re-selected', { new_backend: backend.name });
+          } catch (fallbackErr) {
+            const fbMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+            log.error('backend re-selection failed, interrupting run', { error: fbMsg });
+            this.runs.update(runId, { status: 'interrupted', error: fbMsg, updated_at: Date.now() });
+            result.interrupted = true;
+            return result;
+          }
+        }
       }
     }
 
@@ -254,12 +284,13 @@ export class EmbedConsumer {
     batch: ChunkQueueRow[],
     enrichResults: (unknown | null)[],
     backend: EmbeddingBackend,
+    opts?: { timeoutMs?: number },
   ): Promise<number[][]> {
     const texts = batch.map((chunk, i) => {
       const enriched = (enrichResults[i] as { enriched_text?: string } | null)?.enriched_text;
       return enriched ?? chunk.raw_text ?? '';
     });
-    return backend.embed(texts);
+    return backend.embed(texts, opts);
   }
 
   private async upsertBatch(

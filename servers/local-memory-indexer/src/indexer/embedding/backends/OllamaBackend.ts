@@ -1,5 +1,5 @@
 import { DEFAULT_BATCH_SIZE_OLLAMA } from '../../../constants.js';
-import type { EmbeddingBackend } from '../EmbeddingBackend.js';
+import type { EmbeddingBackend, EmbedOptions, HealthCheckResult } from '../EmbeddingBackend.js';
 
 export class OllamaBackend implements EmbeddingBackend {
   readonly name = 'ollama' as const;
@@ -13,12 +13,15 @@ export class OllamaBackend implements EmbeddingBackend {
     this.batchSize = batchSize ?? DEFAULT_BATCH_SIZE_OLLAMA;
   }
 
-  async embed(texts: string[]): Promise<number[][]> {
+  async embed(texts: string[], opts?: EmbedOptions): Promise<number[][]> {
+    const timeoutMs = opts?.timeoutMs ?? 60_000; // 60s per batch default
     const url = `${this.baseUrl}/api/embed`;
+
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: this.model, input: texts }),
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
     if (!res.ok) {
@@ -33,15 +36,17 @@ export class OllamaBackend implements EmbeddingBackend {
     return json.embeddings;
   }
 
-  async healthCheck(): Promise<boolean> {
+  async healthCheck(): Promise<HealthCheckResult> {
+    const start = Date.now();
     try {
-      const res = await fetch(`${this.baseUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
-      if (!res.ok) return false;
+      const res = await fetch(`${this.baseUrl}/api/tags`, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return { healthy: false, latencyMs: -1 };
       const json = (await res.json()) as { models?: { name: string }[] };
+      if (!Array.isArray(json.models)) return { healthy: false, latencyMs: -1 };
       // Accept if Ollama is reachable — model may still be loading
-      return Array.isArray(json.models);
+      return { healthy: true, latencyMs: Date.now() - start };
     } catch {
-      return false;
+      return { healthy: false, latencyMs: -1 };
     }
   }
 
