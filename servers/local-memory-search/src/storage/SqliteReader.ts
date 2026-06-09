@@ -199,6 +199,22 @@ export class SqliteReader {
     };
   }
 
+  /**
+   * Count chunks for a project that have non-empty raw_text.
+   * Used by index_status to report `fts_ready_chunks` — the number of chunks
+   * that can serve keyword search (SQLite LIKE or LanceDB FTS) right now,
+   * independent of embedding status (Task 3.5 — partial index awareness).
+   */
+  countChunksWithText(projectPath: string): number {
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM chunks_queue
+         WHERE project_path = ? AND raw_text IS NOT NULL AND raw_text != ''`,
+      )
+      .get(projectPath) as { n: number };
+    return row.n;
+  }
+
   /** Guard: prove read-only enforcement (Spec 08.2 §6 Read-Only Enforcement test). */
   assertNoWrite(operation: string): never {
     throw new ReadOnlyViolationError(`SQLite.${operation}`);

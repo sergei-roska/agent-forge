@@ -117,6 +117,16 @@ export class SearchEngine {
     const lance = await this.lance(params.projectPath);
     const sqlite = this.sqlite(params.projectPath);
 
+    if (sqlite) {
+      const stats = sqlite.stats(params.projectPath);
+      if (stats.pending_chunks > 0) {
+        warnings.push(
+          `EMBEDDING_IN_PROGRESS: ${stats.pending_chunks} chunk(s) pending embedding. ` +
+            'Keyword/hybrid search operates in partial mode; results will improve as embedding continues.',
+        );
+      }
+    }
+
     let outcome: RetrieveOutcome;
     if (!lance) {
       // §5.4 INDEX_UNAVAILABLE — SQLite keyword fallback.

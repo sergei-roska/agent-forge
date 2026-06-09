@@ -98,6 +98,9 @@ function indexEmptyHint(outcome: RetrieveOutcome, projectPath: string): string |
   if (outcome.stats.warnings.some((w) => w.startsWith('schema_version_mismatch'))) {
     return 'Stale schema detected. Run start_indexing with force=true to refresh the index.';
   }
+  if (outcome.stats.warnings.some((w) => w.startsWith('EMBEDDING_IN_PROGRESS'))) {
+    return 'Embedding is currently in progress. Run start_indexing (Indexer service) to resume or check status.';
+  }
   if (outcome.stats.mode === 'sqlite_fallback') return undefined;
   return `Run start_indexing with project_path '${projectPath}' to build the index.`;
 }

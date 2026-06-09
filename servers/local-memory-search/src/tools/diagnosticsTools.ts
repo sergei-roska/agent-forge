@@ -19,7 +19,7 @@ const startedAt = Date.now();
 export function makeHealthCheckTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'health_check',
-    description: 'Report search-service readiness: LanceDB access, embedding backend, FTS presence, and schema_version.',
+    description: 'Report search-service readiness: LanceDB access, embedding backend, FTS presence, schema_version, and partial-index capability flags (verbose=true).',
     inputSchema: healthCheckShape,
     handler: async (raw) => {
       const a = HealthCheckSchema.parse(raw);
@@ -29,6 +29,7 @@ export function makeHealthCheckTool(engine: SearchEngine): ToolDefinition {
       const lanceExists = LanceReader.exists(proj.path);
       const sqliteExists = SqliteReader.exists(proj.path);
       const lance = lanceExists ? await engine.lance(proj.path) : null;
+      const sqlite = sqliteExists ? engine.sqlite(proj.path) : null;
       const embed = await engine.getEmbedder().probe();
 
       const warnings: string[] = [];
@@ -48,9 +49,43 @@ export function makeHealthCheckTool(engine: SearchEngine): ToolDefinition {
         uptime_seconds: Math.round((Date.now() - startedAt) / 1000),
       };
 
-      if (a.verbose && lance) {
-        data['indexed_chunks'] = await lance.count(buildWherePredicate(proj.path)).catch(() => 0);
-        data['schema_versions_present'] = await lance.distinctSchemaVersions(proj.path).catch(() => []);
+      if (a.verbose) {
+        const compatibleVectors = lance
+          ? await lance.count(buildWherePredicate(proj.path)).catch(() => 0)
+          : 0;
+        const stats = sqlite?.stats(proj.path);
+        const pendingChunks = stats?.pending_chunks ?? 0;
+        const indexedChunks = (stats?.embedded_chunks ?? 0) + pendingChunks;
+
+        const capabilities = {
+          semantic_search: compatibleVectors > 0,
+          keyword_search: indexedChunks > 0,
+          hybrid_search: compatibleVectors > 0 && indexedChunks > 0,
+          context_pack: indexedChunks > 0,
+        };
+
+        data['indexed_chunks'] = compatibleVectors;
+        data['schema_versions_present'] = await lance?.distinctSchemaVersions(proj.path).catch(() => []) ?? [];
+        data['index_capabilities'] = capabilities;
+        data['pending_chunks'] = pendingChunks;
+
+        // Capability-aware warnings for the verbose path.
+        if (!capabilities.semantic_search && indexedChunks > 0) {
+          warnings.push(
+            'SEMANTIC_SEARCH_UNAVAILABLE: No embedded vectors found. ' +
+              'keyword_search and context_pack are available. ' +
+              'Run start_indexing (Indexer service) to enable semantic_search.',
+          );
+        }
+        if (!capabilities.keyword_search) {
+          warnings.push('KEYWORD_SEARCH_UNAVAILABLE: No chunks indexed for this project. Run start_indexing first.');
+        }
+        if (pendingChunks > 0) {
+          warnings.push(
+            `EMBEDDING_IN_PROGRESS: ${pendingChunks} chunk(s) pending embedding. ` +
+              'Search operates in partial mode; results will improve as embedding continues.',
+          );
+        }
       }
 
       return ok(`Search service ${status} for '${proj.path}'.`, data, { warnings: warnings.length ? warnings : undefined });
@@ -61,7 +96,7 @@ export function makeHealthCheckTool(engine: SearchEngine): ToolDefinition {
 export function makeIndexStatusTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'index_status',
-    description: 'Show indexed file/chunk counts and freshness for a project. Reads LanceDB + SQLite (read-only).',
+    description: 'Show indexed file/chunk counts, freshness, and current search capability flags for a project. Reads LanceDB + SQLite (read-only).',
     inputSchema: indexStatusShape,
     handler: async (raw) => {
       const a = IndexStatusSchema.parse(raw);
@@ -74,28 +109,67 @@ export function makeIndexStatusTool(engine: SearchEngine): ToolDefinition {
       const compatibleVectors = lance ? await lance.count(buildWherePredicate(proj.path)).catch(() => 0) : 0;
 
       const indexedChunks = (stats?.embedded_chunks ?? 0) + (stats?.pending_chunks ?? 0);
+      const pendingChunks = stats?.pending_chunks ?? 0;
+      const embeddedChunks = stats?.embedded_chunks ?? 0;
       const staleRatio = stats && stats.vector_count > 0
         ? Math.max(0, (stats.vector_count - compatibleVectors) / stats.vector_count)
         : 0;
+
+      // Probe FTS availability (chunks with text content, regardless of vector status).
+      // fts_ready_chunks counts chunks that can serve keyword search right now.
+      const ftsReadyChunks = sqlite ? sqlite.countChunksWithText(proj.path) : 0;
+
+      // Capability flags: what search modes are usable right now.
+      const capabilities = {
+        /** True when ≥1 vector is embedded and schema-compatible. */
+        semantic_search: compatibleVectors > 0,
+        /** True when ≥1 chunk with text content exists (keyword/FTS or SQLite LIKE). */
+        keyword_search: indexedChunks > 0,
+        /** True when both legs are available. */
+        hybrid_search: compatibleVectors > 0 && indexedChunks > 0,
+        /** True when keyword_search is available (context pack builds from any search leg). */
+        context_pack: indexedChunks > 0,
+      };
+
+      // Actionable hints when the index is partially embedded.
+      const warnings: string[] = [];
+      if (pendingChunks > 0 && embeddedChunks === 0) {
+        warnings.push(
+          `EMBEDDING_NOT_STARTED: ${pendingChunks} chunk(s) pending embedding. ` +
+            'keyword_search and context_pack are available now; semantic_search and hybrid_search require embedding to complete. ' +
+            'Run start_indexing (Indexer service) to begin embedding.',
+        );
+      } else if (pendingChunks > 0) {
+        warnings.push(
+          `EMBEDDING_IN_PROGRESS: ${pendingChunks} chunk(s) still pending. ` +
+            `hybrid_search has ${compatibleVectors} vectors available now; all modes will improve as embedding continues.`,
+        );
+      }
 
       const data = {
         project_path: proj.path,
         indexed_files: stats?.indexed_files ?? 0,
         indexed_chunks: indexedChunks,
-        embedded_chunks: stats?.embedded_chunks ?? 0,
-        pending_chunks: stats?.pending_chunks ?? 0,
+        embedded_chunks: embeddedChunks,
+        pending_chunks: pendingChunks,
         compatible_vectors: compatibleVectors,
         declared_vector_count: stats?.vector_count ?? 0,
+        fts_ready_chunks: ftsReadyChunks,
         last_indexed_at: stats?.last_indexed_at ?? null,
         stale_ratio: round(staleRatio),
         schema_version: SCHEMA_VERSION,
+        capabilities,
       };
 
-      return ok(
+      const summary =
         `Project '${proj.path}': ${data.indexed_files} files, ${compatibleVectors} compatible vectors` +
-          `${data.pending_chunks ? `, ${data.pending_chunks} pending embedding` : ''}.`,
-        data,
-      );
+        `${pendingChunks ? `, ${pendingChunks} pending embedding` : ''}. ` +
+        `Modes available: ${Object.entries(capabilities)
+          .filter(([, v]) => v)
+          .map(([k]) => k)
+          .join(', ') || 'none (no chunks indexed)'}.`;
+
+      return ok(summary, data, { warnings: warnings.length ? warnings : undefined });
     },
   };
 }
