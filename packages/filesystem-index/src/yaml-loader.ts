@@ -44,9 +44,9 @@ export async function listConfigNames(configDir: string, prefix?: string): Promi
   }
 
   return entries
-    .filter(f => extname(f) === '.yml')
-    .map(f => basename(f, '.yml'))
-    .filter(name => !prefix || name.startsWith(prefix))
+    .filter((f: string) => extname(f) === '.yml')
+    .map((f: string) => basename(f, '.yml'))
+    .filter((name: string) => !prefix || name.startsWith(prefix))
     .sort();
 }
 

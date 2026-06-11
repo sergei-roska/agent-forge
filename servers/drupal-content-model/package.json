@@ -11,11 +11,12 @@
   "dependencies": {
     "@agent-forge/drupal-api-client": "workspace:*",
     "@agent-forge/mcp-core": "workspace:*",
+    "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "latest",
-    "zod": "^3.22.4"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^20.11.20",
-    "typescript": "^5.3.3"
+    "@types/node": "^25.9.2",
+    "typescript": "^6.0.3"
   }
 }

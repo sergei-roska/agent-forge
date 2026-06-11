@@ -1,53 +1,71 @@
-export type SourceOfTruth = 'runtime' | 'config_sync' | 'codebase' | 'database' | 'browser' | 'mixed';
-
-export interface McpResponseEnvelope<T = unknown> {
-  summary: string;
-  data: T[];
-  pagination?: {
-    total: number;
-    returned: number;
-    limit: number;
-    next_cursor: string | null;
-    has_more: boolean;
-  };
-  source_of_truth?: SourceOfTruth;
-  warnings?: string[];
+/**
+ * Foundation-contract response envelope for the read-only search service
+ * (Spec 08.2 §2.3 step 8 "Summary-First Response").
+ *
+ * Every tool returns a `summary` first, then `data`, then optional metadata.
+ * The shape is FROZEN at contract v1.0 — do not reorder or rename top-level keys.
+ */
+export interface Pagination {
+  limit: number;
+  offset: number;
+  total_returned: number;
+  has_more?: boolean;
+  gap_cutoff_applied?: boolean;
 }
 
-export function buildEnvelope<T = unknown>(opts: {
+export type SearchMode = 'hybrid' | 'semantic_only' | 'keyword_only' | 'sqlite_fallback';
+
+export interface StrategyWeights {
+  alpha: number;
+  rrf_k: number;
+  mode: SearchMode;
+}
+
+export interface McpResponseEnvelope {
   summary: string;
-  data: T[];
-  total?: number;
-  limit?: number;
-  cursor?: string | null;
-  source?: SourceOfTruth;
+  data: unknown;
+  strategy_weights?: StrategyWeights;
+  pagination?: Pagination;
   warnings?: string[];
-}): McpResponseEnvelope<T> {
-  const envelope: McpResponseEnvelope<T> = {
-    summary: opts.summary,
-    data: opts.data,
+  /** Present on the empty-index path (Spec 08.2 §5.3). */
+  next_steps?: string;
+  source_of_truth?: 'local_index' | 'sqlite_fallback' | 'none';
+}
+
+export interface OkOptions {
+  warnings?: string[];
+  strategy_weights?: StrategyWeights;
+  pagination?: Pagination;
+  next_steps?: string;
+  source_of_truth?: McpResponseEnvelope['source_of_truth'];
+}
+
+/** Build a successful, summary-first envelope. */
+export function ok(summary: string, data: unknown, opts: OkOptions = {}): McpResponseEnvelope {
+  return {
+    summary,
+    data,
+    ...(opts.strategy_weights ? { strategy_weights: opts.strategy_weights } : {}),
+    ...(opts.pagination ? { pagination: opts.pagination } : {}),
+    ...(opts.warnings?.length ? { warnings: opts.warnings } : {}),
+    ...(opts.next_steps ? { next_steps: opts.next_steps } : {}),
+    source_of_truth: opts.source_of_truth ?? 'local_index',
   };
+}
 
-  if (opts.total !== undefined || opts.limit !== undefined || opts.cursor !== undefined) {
-    const total = opts.total ?? opts.data.length;
-    const returned = opts.data.length;
-    const limit = opts.limit ?? returned;
-    envelope.pagination = {
-      total,
-      returned,
-      limit,
-      next_cursor: opts.cursor ?? null,
-      has_more: total > returned,
-    };
-  }
-
-  if (opts.source) {
-    envelope.source_of_truth = opts.source;
-  }
-
-  if (opts.warnings && opts.warnings.length > 0) {
-    envelope.warnings = opts.warnings;
-  }
-
-  return envelope;
+/**
+ * Structured non-throwing error envelope. Used only for genuine 4xx-equivalent
+ * conditions that are NOT degradable (e.g. CHUNK_NOT_FOUND). Search tools never
+ * surface 500-equivalent internal errors to the agent (Spec 08.2 §6).
+ */
+export function structuredError(
+  code: string,
+  message: string,
+  extra: Record<string, unknown> = {},
+): McpResponseEnvelope {
+  return {
+    summary: `${code}: ${message}`,
+    data: { error_code: code, message, ...extra },
+    source_of_truth: 'none',
+  };
 }

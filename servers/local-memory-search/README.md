@@ -1,69 +1,135 @@
-# 🧠 Local Memory Search (Spec 08)
+# 🧠 Local Memory Search (Spec 08.2)
 
-Local-first MCP server for project-scoped indexing, semantic retrieval, hybrid search, and compressed context packs.
+The **read-only consumer** half of the local agent-memory system. It exposes the
+agent's primary retrieval interface — hybrid search, context packs, chunk
+navigation, and health diagnostics — over the LanceDB index produced by the
+companion **`local-memory-indexer`** (Spec 08.1).
 
-It is designed as the resilient local memory/retrieval layer for agent workflows when remote vector infrastructure is unavailable or undesirable.
+It runs in **strict read-only mode**: it never writes to LanceDB, never mutates
+the SQLite state DB, and never writes to the filesystem. This guarantees agent
+search latency is never impacted by background indexing writes.
 
 ## ✨ Features
 
-- **Strict Per-Project Isolation**: every index is scoped to one project root; no cross-project global index is built.
-- **Hybrid Retrieval**: combines semantic similarity and keyword/BM25 search for higher recall and better fallback behavior.
-- **Ollama-Backed Local Intelligence**: supports local embeddings, chunk enrichment, and query-time reranking.
-- **Graceful Degradation**: falls back to local hash embeddings or keyword-only retrieval when Ollama or vector state is unavailable.
-- **Agent-Ready Context Packs**: returns bounded excerpts grouped by file for direct reasoning/code-generation use.
-- **Index Diagnostics**: exposes `health_check`, `index_status`, and `doctor_index` for verification and repair.
+- **Strict read-only enforcement** — LanceDB tables are wrapped in a Proxy that
+  throws `READONLY_VIOLATION` on any mutating call; SQLite is opened
+  `readonly` + `PRAGMA query_only = ON`.
+- **Hybrid retrieval** — parallel vector ANN + BM25/FTS fused with Reciprocal
+  Rank Fusion, an exact-identifier boost, recency boost, and relevance-gap
+  filtering.
+- **Graceful degradation, never an error** — every tool returns a usable result
+  set with a `warnings[]` array. The cascade is: lock → brute-force ANN → FTS →
+  SQLite `LIKE`; embedding down → keyword-only (`alpha=0`); LanceDB missing →
+  SQLite fallback.
+- **Per-project isolation** — every query is filtered by `project_path` **and**
+  `schema_version`; no cross-project federation.
+- **Agent-ready context packs** — token-budgeted excerpts with optional neighbor
+  expansion and optional `qwen3.5:9b` LLM re-ranking.
 
-## 🧰 Available Tools (14)
+## 🧰 Available Tools (11, read-only)
 
 | Tool | Purpose |
 |---|---|
-| `health_check` | Report server readiness, dependency health, and index path. |
-| `index_status` | Show indexed file/chunk coverage and freshness estimate. |
-| `index_project` | Scan a project and build chunk metadata for changed files, optionally in the background. |
-| `embed_chunks` | Generate embeddings and sync the local LanceDB vector store, optionally in the background. |
-| `list_runs` | List recent indexing and embedding runs for a project. |
-| `get_run_status` | Inspect one background run by `run_id`. |
-| `search_semantic` | Run vector similarity search over indexed chunks. |
-| `search_keyword` | Run BM25 full-text keyword search over indexed chunks. |
-| `search_hybrid` | Fuse semantic and keyword ranking with Reciprocal Rank Fusion. |
-| `retrieve_context_pack` | Build a bounded, agent-ready context package for a query. |
-| `explain_match` | Explain why a recorded search result matched. |
-| `get_chunk` | Fetch a chunk by stable `chunk_id`. |
-| `delete_project_index` | Remove all local index data for one project. |
-| `doctor_index` | Diagnose index consistency and optionally repair known issues. |
+| `search_hybrid` | Primary hybrid (vector + BM25/RRF) search. |
+| `search_semantic` | Pure vector ANN search. |
+| `search_keyword` | Pure BM25/FTS keyword search. |
+| `retrieve_context_pack` | Token-budgeted context pack with neighbor expansion + optional re-rank. |
+| `read_chunk_neighbors` | Adjacent chunks before/after a hit. |
+| `get_chunk` | Fetch one chunk by stable `chunk_id`. |
+| `search_similar` | Find chunks similar to a file/function via its stored vector. |
+| `explain_match` | Score breakdown: vector, FTS, identifier boost, recency. |
+| `health_check` | Readiness: LanceDB, embedding backend, FTS, `schema_version`. |
+| `index_status` | Indexed file/chunk counts, freshness, stale ratio. |
+| `doctor_index` | Diagnose schema/FTS/count inconsistencies (read-only; suggests actions). |
+
+> `delete_project_index` is **intentionally not exposed** — delete operations
+> belong exclusively to the indexer process.
+
+### Common search parameters
+
+Most search tools accept:
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `project_path` | string | env default | Absolute path to the indexed project root. |
+| `query` | string | *(required)* | Natural-language or keyword query. |
+| `limit` | integer | `10` | Max results to return. |
+| `offset` | integer | `0` | Pagination offset. |
+| `max_chars` | integer | `2000` | Truncate chunk text in results. |
+| `summary_only` | boolean | `false` | Return compact summaries instead of full text. |
+| `filters` | object | — | Filter by `file_path`, `language`, `chunk_kind`, etc. |
+
+`search_hybrid` additionally accepts `alpha` (vector vs keyword weight, default
+`0.5`), `rrf_k`, `recency_weight`, and `gap_threshold`.
+
+### Context & diagnostics highlights
+
+- **`retrieve_context_pack`** — `max_files`, `max_chars`, `include_neighbors`,
+  `neighbor_hops`, `rerank`, `truncate_strategy`.
+- **`read_chunk_neighbors`** — `chunk_id`, `before`, `after` (chunk counts).
+- **`search_similar`** — `file_path` + optional `symbol` or `start_line`.
+- **`health_check`** — optional `verbose` for chunk counts and schema versions.
 
 ## 🤖 Default Local Model Stack
 
-- embeddings: `qwen3-embedding:8b`
-- chunk metadata enrichment: `granite4:3b-h`
-- query-time reranking and quality-sensitive synthesis: `qwen3.5:9b`
-
-This is the v1 baseline profile. No separate low-memory profile is defined.
+- embeddings: `qwen3-embedding:8b` (must match the model the indexer used), with
+  a `Transformers.js` CPU fallback.
+- query-time re-ranking: `qwen3.5:9b`.
 
 ## 🚀 Quick Start (Forge)
 
 ```bash
 # From the root of agent-forge
 pnpm install
-cd servers/local-memory-search
-pnpm run build
+pnpm --filter @agent-forge/server-local-memory-search build
+pnpm --filter @agent-forge/server-local-memory-search test
 ```
 
-### Environment Variables
+Index a project first via **`local-memory-indexer`**, then query here.
 
-- `LOCAL_VECTOR_SEARCH_DATA_ROOT`: override the local server data root.
-- `LOCAL_VECTOR_SEARCH_DEFAULT_PROJECT`: default project path when `project_path` is omitted.
-- `OLLAMA_BASE_URL`: override the Ollama base URL. Default: `http://127.0.0.1:11434`.
+## 🔋 Environment Variables
 
-### Notes
-
-- The state store uses `node:sqlite`, which is still marked experimental in Node 24.
-- The vector store uses `@lancedb/lancedb`.
-- The server never executes project code during indexing.
+| Variable | Default | Description |
+|---|---|---|
+| `LOCAL_VECTOR_SEARCH_DATA_ROOT` | `~/.agent-forge/local-memory-search` | Shared data root (must match the indexer). |
+| `LOCAL_VECTOR_SEARCH_DEFAULT_PROJECT` | `process.cwd()` | Default `project_path` when omitted. |
+| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama base URL. |
+| `EMBED_MODEL` | `qwen3-embedding:8b` | Query embedding model (must match indexer). |
+| `RERANK_MODEL` | `qwen3.5:9b` | LLM re-ranker for `retrieve_context_pack`. |
 
 ## 🛠 MCP Client Configuration
 
-To use this server in your MCP client, point it at the built server entrypoint:
+### Claude Desktop / Cursor (`mcp.json`)
+
+```json
+{
+  "mcpServers": {
+    "local-memory-indexer": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/agent-forge/servers/local-memory-indexer/dist/index.js"
+      ],
+      "env": {
+        "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/you/.agent-forge/local-memory-search"
+      }
+    },
+    "local-memory-search": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/agent-forge/servers/local-memory-search/dist/index.js"
+      ],
+      "env": {
+        "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/you/.agent-forge/local-memory-search"
+      }
+    }
+  }
+}
+```
+
+Replace paths with the actual absolute paths to your built `dist/index.js` files.
+Both servers **must share the same** `LOCAL_VECTOR_SEARCH_DATA_ROOT`.
+
+Search-only configuration (when indexing is handled elsewhere):
 
 ```json
 {
@@ -78,144 +144,40 @@ To use this server in your MCP client, point it at the built server entrypoint:
 }
 ```
 
-For the exported standalone package, use:
+The frozen contract version is **1.0** (`server.manifest.json` →
+`contract_frozen`). Tool names, required params, and the envelope shape must not
+change without a version bump.
 
-```json
-{
-  "mcpServers": {
-    "local-memory-search": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/agent-forge/standalone/local-memory-search/dist/index.js"
-      ]
-    }
-  }
-}
-```
+## 🧪 AI Agent Verification & Stress Test
 
-## 🧪 Manual MCP Testing Checklist
-
-Use this sequence to verify the server end-to-end against a real project.
+If you are an AI agent tasked with verifying this server, follow this protocol
+strictly:
 
 ### 🎯 Objective
 
-Confirm that the server can:
-
-- initialize and report health;
-- index one project without leaking outside its root;
-- create embeddings locally;
-- return useful hybrid results;
-- produce a bounded context pack for agent consumption;
-- diagnose index problems without crashing.
+Confirm hybrid retrieval quality, graceful degradation, and per-project isolation.
 
 ### 🛠 Sequential Testing Protocol
 
-Test one tool at a time in this order:
+Execute in order after the indexer has completed at least one run:
 
-1. **`health_check`**
-   - Run with `verbose=true`.
-   - Verify the response includes:
-     - `status`
-     - `indexPath`
-     - `dbBackend`
-     - `embeddingBackend`
-   - If Ollama is down, verify the server reports degradation instead of failing.
+```
+health_check → index_status → search_keyword → search_semantic → search_hybrid
+  → retrieve_context_pack → read_chunk_neighbors → explain_match → doctor_index
+```
 
-2. **`index_status`**
-   - Run before indexing.
-   - Expect zero or near-zero counts for a fresh project.
-   - Confirm the `project_path` namespace is correct.
+For each tool confirm:
 
-3. **`index_project`**
-   - Run with the target `project_path`.
-   - For large repositories, prefer `background=true` and monitor with `get_run_status`.
-   - Verify:
-     - changed files are indexed;
-     - skipped binary/large/minified files appear in warnings/skipped lists;
-     - re-running without changes produces low or zero changed-file counts.
-
-4. **`embed_chunks`**
-   - Run after indexing.
-   - Verify:
-     - `embedded_new` is non-zero on the first pass;
-     - `backend_used` is `ollama` when Ollama is available, otherwise fallback is explicit;
-     - subsequent runs are incremental unless `fresh=true`.
-
-5. **`search_keyword`**
-   - Query for an exact term you know exists in the repo.
-   - Verify the top results include the expected file paths.
-
-6. **`search_semantic`**
-   - Query with a conceptual phrase rather than an exact identifier.
-   - Verify the results are still relevant, especially when embeddings are available.
-
-7. **`search_hybrid`**
-   - Query for a phrase containing both semantic intent and exact keywords.
-   - Verify the response stays bounded and returns sensible ranking.
-   - If semantic retrieval is unavailable, verify the warning explicitly says it degraded to keyword-only mode.
-
-8. **`retrieve_context_pack`**
-   - Run with a realistic query and `max_chars=12000`.
-   - Verify:
-     - excerpts are grouped across a limited number of files;
-     - budget metadata is present;
-     - truncation is explicit when the budget is exceeded.
-
-9. **`explain_match`**
-   - Use a `result_id` returned by one of the search tools.
-   - Verify it returns lexical hits, semantic terms, and score breakdown instead of a generic explanation.
-
-10. **`get_chunk`**
-    - Fetch a known `chunk_id`.
-    - Verify file path, line range, text, and metadata are all stable and coherent.
-
-11. **`doctor_index`**
-    - Run once with `auto_fix=false`.
-    - Then run with `auto_fix=true` if you intentionally create stale vector/FTS state.
-    - Verify it reports issues and repairs them without deleting the whole index unnecessarily.
-
-12. **`delete_project_index`**
-    - Run only at the end with `confirm=true`.
-    - Verify all local state for that project is removed and `index_status` resets accordingly.
+- Summary-first bounded output
+- Isolation to the requested `project_path`
+- Deterministic ordering on repeat queries
+- Degraded subsystems surface a `warnings[]` entry rather than a hard error
 
 ### 📝 Evaluation Criteria
 
-For each tool, check:
+- **Relevance**: Do top hits match the query intent?
+- **Degradation**: With Ollama stopped, does `search_hybrid` still return
+  keyword results with a warning?
+- **Context packs**: Does `retrieve_context_pack` stay within the char budget?
 
-- **Correctness**: does it return the expected files, chunks, or status?
-- **Bounded Output**: does it stay compact and usable for an agent?
-- **Fallback Quality**: does it degrade with warnings instead of hard failure?
-- **Isolation**: does everything remain scoped to the requested `project_path`?
-- **Repeatability**: are repeated calls stable when the corpus is unchanged?
-
-### Suggested Test Query Set
-
-Use a small set of repeatable queries against a known repository:
-
-- exact identifier query
-- conceptual architecture query
-- mixed semantic + keyword query
-- query that should produce zero matches
-
-Example:
-
-- `workflow aliases bashrc`
-- `project indexing fallback behavior`
-- `lancedb sqlite health check`
-- `string-that-does-not-exist-anywhere`
-
-## 📦 Standalone Export
-
-To build the standalone MCP package:
-
-```bash
-cd /absolute/path/to/agent-forge
-pnpm export:standalone -- local-memory-search
-cd standalone/local-memory-search
-npm install --legacy-peer-deps
-npm run start
-```
-
-The standalone package is generated at:
-
-- [standalone/local-memory-search](/home/sr/Projects/Workspace/agent-forge/standalone/local-memory-search)
+**Produce a "Search Quality Audit" for each tool before finishing verification.**

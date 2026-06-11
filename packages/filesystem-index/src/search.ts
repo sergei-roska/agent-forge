@@ -97,7 +97,7 @@ export async function searchFiles(
           if (options.contextLines && options.contextLines > 0) {
             const start = Math.max(0, i - options.contextLines);
             const end = Math.min(lines.length - 1, i + options.contextLines);
-            result.context = lines.slice(start, end + 1).map(l => l.trimEnd());
+            result.context = lines.slice(start, end + 1).map((l: string) => l.trimEnd());
           }
 
           results.push(result);
@@ -122,7 +122,7 @@ export async function listFiles(
 ): Promise<FileInfo[]> {
   const results: FileInfo[] = [];
   const excludeSet = new Set(
-    (options?.exclude ?? DEFAULT_EXCLUDES.map(e => `${e}/*`)).map(p => p.replace('/*', '')),
+    (options?.exclude ?? DEFAULT_EXCLUDES.map((e: string) => `${e}/*`)).map((p: string) => p.replace('/*', '')),
   );
 
   async function walk(dir: string) {
@@ -139,7 +139,7 @@ export async function listFiles(
 
       // Check excludes against relative path components
       const pathParts = relPath.split('/');
-      if (pathParts.some(part => excludeSet.has(part))) continue;
+      if (pathParts.some((part: string) => excludeSet.has(part))) continue;
 
       if (entry.isDirectory()) {
         await walk(fullPath);

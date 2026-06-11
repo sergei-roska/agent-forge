@@ -1,0 +1,46 @@
+{
+  "name": "@agent-forge/server-local-memory-indexer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Write-only producer MCP server: discovers, chunks, and embeds project files into LanceDB (Spec 08.1)",
+  "type": "module",
+  "bin": {
+    "server-local-memory-indexer": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-vm-modules node_modules/vitest/vitest.mjs run",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
+    "@lancedb/lancedb": "^0.30.0",
+    "@modelcontextprotocol/sdk": "latest",
+    "apache-arrow": "^21.1.0",
+    "better-sqlite3": "^12.10.0",
+    "ignore": "^7.0.5",
+    "mammoth": "^1.12.0",
+    "pdf-parse": "^2.4.5",
+    "tree-sitter": "^0.25.0",
+    "tree-sitter-c": "^0.24.1",
+    "tree-sitter-cpp": "^0.23.4",
+    "tree-sitter-go": "^0.25.0",
+    "tree-sitter-java": "^0.23.5",
+    "tree-sitter-javascript": "^0.25.0",
+    "tree-sitter-python": "^0.25.0",
+    "tree-sitter-rust": "^0.24.0",
+    "tree-sitter-typescript": "^0.23.2",
+    "uuid": "^14.0.0",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "latest",
+    "@types/node": "latest",
+    "@types/uuid": "latest",
+    "typescript": "latest",
+    "vitest": "4.1.8"
+  }
+}

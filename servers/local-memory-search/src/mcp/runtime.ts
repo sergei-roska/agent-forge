@@ -32,20 +32,18 @@ export function createMcpServer(options: {
       try {
         const result = await tool.handler(args as never);
         return {
-          content: [
-            {
-              type: 'text' as const,
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         };
       } catch (error) {
+        // Last-resort guard. The pipeline is designed to never throw to here —
+        // every degradable failure is caught upstream and returned as a usable
+        // envelope (Spec 08.2 §6). Reaching this branch is a bug.
         return {
           content: [
             {
               type: 'text' as const,
               text: JSON.stringify({
-                error: 'INTERNAL_ERROR',
+                error_code: 'INTERNAL_ERROR',
                 message: error instanceof Error ? error.message : String(error),
               }, null, 2),
             },
@@ -62,5 +60,5 @@ export function createMcpServer(options: {
 export async function startServer(server: McpServer): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('[MCP] Server connected via stdio');
+  console.error('[local-memory-search] Server connected via stdio');
 }

@@ -16,8 +16,9 @@
     "@agent-forge/drupal-api-client": "workspace:*",
     "@agent-forge/filesystem-index": "workspace:*",
     "@agent-forge/mcp-core": "workspace:*",
+    "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "latest",
-    "zod": "^3.22.0"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "latest",
