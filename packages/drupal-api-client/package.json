@@ -8,11 +8,13 @@
     "build": "tsc",
     "test": "vitest run --passWithNoTests"
   },
-  "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "vitest": "^1.0.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^25.9.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@huggingface/transformers": "^4.2.0"
+  }
 }

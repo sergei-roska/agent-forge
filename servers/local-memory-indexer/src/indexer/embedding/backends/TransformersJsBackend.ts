@@ -40,9 +40,9 @@ export class TransformersJsBackend implements EmbeddingBackend {
 
     log.info('loading embedding model', { model: this.modelName });
 
-    const { pipeline } = await import('@xenova/transformers');
+    const { pipeline } = await import('@huggingface/transformers');
     this.pipeline = (await pipeline('feature-extraction', this.modelName, {
-      quantized: true,
+      dtype: 'q8',
       progress_callback: (progress: { status?: string; progress?: number; file?: string }) => {
         if (progress.status === 'downloading' && progress.progress != null) {
           log.info('model download progress', {

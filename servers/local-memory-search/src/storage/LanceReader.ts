@@ -157,7 +157,7 @@ export class LanceReader {
         .nearestTo(vector)
         .distanceType('cosine')
         .where(where)
-        .select([...PROJECTION_COLUMNS])
+        .select([...PROJECTION_COLUMNS, '_distance'])
         .limit(topK);
       if (bruteForce) q = q.bypassVectorIndex();
       const rows = (await q.toArray()) as Record<string, unknown>[];
@@ -175,7 +175,7 @@ export class LanceReader {
         .query()
         .fullTextSearch(queryText, { columns: ['text'] })
         .where(where)
-        .select([...PROJECTION_COLUMNS])
+        .select([...PROJECTION_COLUMNS, '_score'])
         .limit(topK)
         .toArray()) as Record<string, unknown>[];
       return rows.map((r) => ({ row: normalizeRow(r), rawScore: nativeScore(r) }));

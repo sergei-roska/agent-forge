@@ -50,6 +50,28 @@ describe('IndexerDoctor', () => {
     expect(row.embedding_status).toBe('pending');
   });
 
+  it('auto-fixes pending queue chunks to pending', async () => {
+    const chunks = new ChunksQueueRepo(db);
+    const now = Date.now();
+    chunks.insertBatch([{
+      chunk_id: 'c1',
+      project_path: projectDir,
+      file_path: `${projectDir}/a.ts`,
+      raw_text: 'code',
+      embedding_status: 'error',
+      priority: 1,
+      created_at: now,
+      updated_at: now,
+      schema_version: SCHEMA_VERSION,
+    }]);
+
+    const doctor = new IndexerDoctor(db);
+    const result = await doctor.run(projectDir, true);
+
+    expect(result.auto_fixed.some((f) => f.name === 'pending_queue')).toBe(true);
+    expect(chunks.countPending(projectDir)).toBe(1);
+  });
+
   it('reports queue health with errored chunks', async () => {
     const chunks = new ChunksQueueRepo(db);
     const now = Date.now();

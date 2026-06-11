@@ -68,9 +68,9 @@ export class QueryEmbedder {
   private async embedViaTransformers(query: string): Promise<number[] | null> {
     if (!this.transformersPipeline) {
       const modelName = process.env['TRANSFORMERS_MODEL'] ?? 'Xenova/multilingual-e5-large';
-      const { pipeline } = await import('@xenova/transformers');
+      const { pipeline } = await import('@huggingface/transformers');
       this.transformersPipeline = (await pipeline('feature-extraction', modelName, {
-        quantized: true,
+        dtype: 'q8',
       })) as unknown as TransformersPipeline;
     }
     const out = await this.transformersPipeline(query, { pooling: 'mean', normalize: true });

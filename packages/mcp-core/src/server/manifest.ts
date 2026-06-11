@@ -33,7 +33,13 @@ export const ServerManifestSchema = z.object({
     include_counts: z.boolean().default(true),
     exclude_noise: z.boolean().default(true),
     limit: z.number().int().min(1).max(1000).default(50),
-  }).default({}),
+  }).default({
+    verbosity: 'minimal',
+    summary_only: false,
+    include_counts: true,
+    exclude_noise: true,
+    limit: 50,
+  }),
 
   /** Source of truth this server primarily uses. */
   source_of_truth: z.enum([

@@ -74,7 +74,7 @@ export class OllamaBackend implements EmbeddingBackend {
         };
       }
 
-      const vectors = await this.embed(['warmup test'], { timeoutMs: 10_000 });
+      const vectors = await this.embed(['warmup test'], { timeoutMs: 180_000 });
       const dimensions = vectors[0]?.length;
 
       return {

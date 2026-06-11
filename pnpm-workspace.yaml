@@ -3,6 +3,7 @@ packages:
   - 'servers/*'
 allowBuilds:
   esbuild: true
+  onnxruntime-node: true
   protobufjs: true
   sharp: true
   tree-sitter: true

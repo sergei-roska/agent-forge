@@ -8,9 +8,10 @@
     "build": "tsc"
   },
   "dependencies": {
-    "playwright": "^1.40.0"
+    "@huggingface/transformers": "^4.2.0",
+    "playwright": "^1.60.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^6.0.3"
   }
 }

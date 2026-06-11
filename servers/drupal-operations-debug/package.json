@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@agent-forge/mcp-core": "workspace:*",
+    "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "latest",
     "zod": "latest"
   },

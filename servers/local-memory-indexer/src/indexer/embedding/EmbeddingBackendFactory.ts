@@ -66,7 +66,7 @@ export async function createEmbeddingBackend(
     if (!health.healthy) {
       throw new IndexerError(
         ErrorCode.EMBEDDING_BACKEND_UNAVAILABLE,
-        'TransformersJS pipeline failed to load. Ensure @xenova/transformers is installed.',
+        'TransformersJS pipeline failed to load. Ensure @huggingface/transformers is installed.',
         { backend: 'transformers_js' },
       );
     }
@@ -104,7 +104,7 @@ export async function createEmbeddingBackend(
   if (!tfjsHealth.healthy) {
     throw new IndexerError(
       ErrorCode.EMBEDDING_BACKEND_UNAVAILABLE,
-      'No healthy embedding backend available. Start Ollama with the embedding model pulled, or install @xenova/transformers.',
+      'No healthy embedding backend available. Start Ollama with the embedding model pulled, or install @huggingface/transformers.',
       { backend: 'auto' },
     );
   }

@@ -27,6 +27,7 @@ export class ChunksQueueRepo {
     if (chunks.length === 0) return;
 
     // Validate schema_version on every chunk before writing to SQLite.
+    // Must match SCHEMA_VERSION exactly — any mismatch (including 'unknown') is an error.
     for (const chunk of chunks) {
       if (!chunk.schema_version) {
         throw new Error(
@@ -102,10 +103,10 @@ export class ChunksQueueRepo {
       this.db
         .prepare(
           `UPDATE chunks_queue
-           SET embedding_status = 'embedded', updated_at = ?
+           SET embedding_status = 'embedded', updated_at = ?, schema_version = ?
            WHERE chunk_id IN (${placeholders})`,
         )
-        .run(now, ...chunkIds);
+        .run(now, SCHEMA_VERSION, ...chunkIds);
     });
   }
 
