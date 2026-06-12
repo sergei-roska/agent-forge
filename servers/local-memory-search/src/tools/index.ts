@@ -8,6 +8,9 @@ import {
 import {
   makeHealthCheckTool, makeIndexStatusTool, makeDoctorIndexTool, makeExplainMatchTool,
 } from './diagnosticsTools.js';
+import {
+  makeFindCallersTool, makeFindCalleesTool, makeGetImportGraphTool, makeTracePathTool,
+} from './graphTools.js';
 
 /**
  * Full read-only tool catalog (Spec 08.2 §4.4). Note: delete_project_index is
@@ -26,5 +29,9 @@ export function createSearchTools(engine: SearchEngine): ToolDefinition[] {
     makeHealthCheckTool(engine),
     makeIndexStatusTool(engine),
     makeDoctorIndexTool(engine),
+    makeFindCallersTool(engine),
+    makeFindCalleesTool(engine),
+    makeGetImportGraphTool(engine),
+    makeTracePathTool(engine),
   ];
 }
