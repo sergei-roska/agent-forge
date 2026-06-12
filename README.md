@@ -13,7 +13,8 @@ This workspace is organized as a `pnpm` monorepo:
   - `filesystem-index`: Fast indexing for local codebase analysis.
 - **`servers/`**: Specialized MCP servers ready for deployment.
   - `drupal-*`: A suite of servers for Drupal codebase introspection, config intelligence, and content modeling.
-  - `local-memory-search`: Semantic search and memory capabilities for agents.
+  - `local-memory-indexer`: Background indexing, chunking, and embedding pipeline.
+  - `local-memory-search`: Semantic search, knowledge graph queries, and memory capabilities.
   - `web-observe-capture`: Real-time browser capture and observation.
 - **`standalone/`**: Self-contained, exported versions of tools for independent use.
 - **`specs/`**: Documentation and protocol specifications.
@@ -61,4 +62,8 @@ Each server in the `servers/` directory can be integrated with MCP-compatible cl
 
 ## 🛡️ License
 
-Private workspace. All rights reserved.
+This project is licensed under the Apache License, Version 2.0 (the "License"). You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.

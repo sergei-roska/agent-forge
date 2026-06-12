@@ -1,6 +1,7 @@
 {
   "name": "agent-forge",
   "private": true,
+  "license": "Apache-2.0",
   "description": "Dedicated workspace for building and shipping MCP servers and specialized agent tools.",
   "scripts": {
     "build": "pnpm -r build",
