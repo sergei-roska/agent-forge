@@ -140,3 +140,34 @@ export const doctorIndexShape = {
   auto_fix: z.boolean().default(false).describe('Read-only here. Use Indexer doctor_index with auto_fix=true to repair.'),
 } as const;
 export const DoctorIndexSchema = z.object(doctorIndexShape);
+
+// ── find_callers (Spec 8.2.1) ───────────────────────────────────────────────
+export const findCallersShape = {
+  symbol_name: z.string().min(1).describe("Name of the target symbol (e.g. 'getUser')."),
+  project_path: projectPath,
+  depth: z.number().int().min(1).max(3).default(1),
+} as const;
+export const FindCallersSchema = z.object(findCallersShape);
+
+// ── find_callees (Spec 8.2.1) ───────────────────────────────────────────────
+export const findCalleesShape = {
+  symbol_name: z.string().min(1).describe("Name of the source symbol (e.g. 'AuthService.login')."),
+  project_path: projectPath,
+  depth: z.number().int().min(1).max(3).default(1),
+} as const;
+export const FindCalleesSchema = z.object(findCalleesShape);
+
+// ── get_import_graph (Spec 8.2.1) ───────────────────────────────────────────
+export const getImportGraphShape = {
+  file_path: z.string().optional().describe("Filter by specific file path. If omitted, returns global imports."),
+  project_path: projectPath,
+} as const;
+export const GetImportGraphSchema = z.object(getImportGraphShape);
+
+// ── trace_path (Spec 8.2.1) ──────────────────────────────────────────────────
+export const tracePathShape = {
+  source_symbol: z.string().min(1).describe("Source symbol name or path."),
+  target_symbol: z.string().min(1).describe("Target symbol name or path."),
+  project_path: projectPath,
+} as const;
+export const TracePathSchema = z.object(tracePathShape);

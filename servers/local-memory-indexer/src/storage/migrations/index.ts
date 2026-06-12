@@ -64,4 +64,38 @@ CREATE TABLE IF NOT EXISTS index_stats (
 );
     `.trim(),
   },
+  {
+    name: '002_graph.sql',
+    sql: `
+CREATE TABLE IF NOT EXISTS graph_nodes (
+  node_id       TEXT PRIMARY KEY,
+  project_path  TEXT NOT NULL,
+  file_path     TEXT NOT NULL,
+  symbol_name   TEXT NOT NULL,
+  symbol_type   TEXT NOT NULL,
+  symbol_path   TEXT NOT NULL,
+  chunk_id      TEXT,
+  start_line    INTEGER NOT NULL,
+  end_line      INTEGER NOT NULL,
+  FOREIGN KEY (chunk_id) REFERENCES chunks_queue (chunk_id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_graph_nodes_lookup ON graph_nodes (project_path, symbol_name);
+CREATE INDEX IF NOT EXISTS idx_graph_nodes_chunk ON graph_nodes (chunk_id);
+
+CREATE TABLE IF NOT EXISTS graph_edges (
+  edge_id           TEXT PRIMARY KEY,
+  project_path      TEXT NOT NULL,
+  source_node_id    TEXT NOT NULL,
+  target_node_name  TEXT NOT NULL,
+  target_node_id    TEXT,
+  relationship_type TEXT NOT NULL,
+  FOREIGN KEY (source_node_id) REFERENCES graph_nodes (node_id) ON DELETE CASCADE,
+  FOREIGN KEY (target_node_id) REFERENCES graph_nodes (node_id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_graph_edges_source ON graph_edges (source_node_id);
+CREATE INDEX IF NOT EXISTS idx_graph_edges_target ON graph_edges (target_node_name);
+    `.trim(),
+  },
 ];

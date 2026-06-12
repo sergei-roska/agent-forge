@@ -10,6 +10,8 @@ import { IndexRunsRepo } from '../../storage/repositories/IndexRunsRepo.js';
 import { computeChunkIdFromText } from '../../identity/chunkId.js';
 import { ErrorCode } from '../../errors/codes.js';
 import { SCHEMA_VERSION, DEFAULT_MAX_CHUNK_CHARS, MAX_PARSE_RETRIES } from '../../constants.js';
+import { GraphRepo } from '../../storage/repositories/GraphRepo.js';
+import { GraphExtractor } from './GraphExtractor.js';
 
 // ── Extension routing table (spec §2.2.3) ────────────────────────────────────
 
@@ -66,6 +68,8 @@ export class ChunkerDispatcher {
   private readonly fps: FingerprintsRepo;
   private readonly chunksRepo: ChunksQueueRepo;
   private readonly runsRepo: IndexRunsRepo;
+  private readonly graphRepo: GraphRepo;
+  private readonly graphExtractor: GraphExtractor;
   private readonly ast: AstChunker;
   private readonly semantic: SemanticChunker;
 
@@ -76,6 +80,8 @@ export class ChunkerDispatcher {
     this.fps = new FingerprintsRepo(db);
     this.chunksRepo = new ChunksQueueRepo(db);
     this.runsRepo = new IndexRunsRepo(db);
+    this.graphRepo = new GraphRepo(db);
+    this.graphExtractor = new GraphExtractor(projectPath);
     this.ast = new AstChunker();
     this.semantic = new SemanticChunker();
   }
@@ -132,6 +138,13 @@ export class ChunkerDispatcher {
       updated_at: Date.now(),
     });
 
+    // Resolve unresolved graph edge targets at the end of Phase 1
+    try {
+      this.graphRepo.resolveEdges(this.projectPath);
+    } catch (resolveErr) {
+      console.warn(`[GraphRepo] Failed to resolve edges:`, resolveErr);
+    }
+
     return stats;
   }
 
@@ -147,6 +160,9 @@ export class ChunkerDispatcher {
 
     const priority = computePriority(runPriority, mtimeNs);
     const now = Date.now();
+
+    // First purge old graph nodes/edges for this file
+    this.graphRepo.deleteByFile(this.projectPath, filePath);
 
     if (route === 'ast') {
       const rawChunks = await this.ast.chunkFile(filePath);
@@ -175,6 +191,22 @@ export class ChunkerDispatcher {
         };
       });
       this.chunksRepo.insertBatch(rows);
+
+      // Now extract graph relationships
+      try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        const chunkInfos = rows.map(r => ({
+          chunk_id: r.chunk_id,
+          start_line: r.start_line,
+          end_line: r.end_line
+        }));
+        const graph = this.graphExtractor.extract(filePath, content, chunkInfos);
+        this.graphRepo.insertNodes(graph.nodes);
+        this.graphRepo.insertEdges(graph.edges);
+      } catch (graphErr) {
+        console.warn(`[GraphExtractor] Failed to extract graph for ${filePath}:`, graphErr);
+      }
+
       return rows.length;
     }
 

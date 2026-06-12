@@ -254,6 +254,181 @@ export class SqliteReader {
     return new Map(rows.map((r) => [r.chunk_id, r.embedding_status ?? '']));
   }
 
+  findCallers(projectPath: string, symbolName: string, depth = 1): any[] {
+    const results: any[] = [];
+    const visited = new Set<string>();
+    const queue: { name: string; currentDepth: number }[] = [{ name: symbolName, currentDepth: 1 }];
+
+    while (queue.length > 0) {
+      const { name, currentDepth } = queue.shift()!;
+      if (visited.has(name) || currentDepth > depth) continue;
+      visited.add(name);
+
+      try {
+        const rows = this.db
+          .prepare(
+            `SELECT ge.*, gn.symbol_name as source_name, gn.symbol_type as source_type, gn.symbol_path as source_path, gn.file_path
+             FROM graph_edges ge
+             JOIN graph_nodes gn ON ge.source_node_id = gn.node_id
+             WHERE ge.project_path = ? AND ge.target_node_name = ?`
+          )
+          .all(projectPath, name) as any[];
+
+        for (const row of rows) {
+          results.push({
+            source_symbol: row.source_path,
+            source_type: row.source_type,
+            file_path: row.file_path,
+            target_symbol: name,
+            relationship_type: row.relationship_type,
+            depth: currentDepth,
+          });
+          if (currentDepth < depth) {
+            queue.push({ name: row.source_name, currentDepth: currentDepth + 1 });
+          }
+        }
+      } catch (err) {
+        // Fallback if table doesn't exist yet
+        console.warn('findCallers failed:', err);
+        break;
+      }
+    }
+    return results;
+  }
+
+  findCallees(projectPath: string, symbolPath: string, depth = 1): any[] {
+    const results: any[] = [];
+    const visited = new Set<string>();
+
+    try {
+      // Look up the node ID for symbolPath first
+      const rootNode = this.db
+        .prepare(`SELECT node_id, symbol_name FROM graph_nodes WHERE project_path = ? AND (symbol_path = ? OR symbol_name = ?)`)
+        .get(projectPath, symbolPath, symbolPath) as { node_id: string; symbol_name: string } | undefined;
+
+      if (!rootNode) return [];
+
+      const queue: { nodeId: string; name: string; currentDepth: number }[] = [
+        { nodeId: rootNode.node_id, name: rootNode.symbol_name, currentDepth: 1 }
+      ];
+
+      while (queue.length > 0) {
+        const { nodeId, name, currentDepth } = queue.shift()!;
+        if (visited.has(nodeId) || currentDepth > depth) continue;
+        visited.add(nodeId);
+
+        const rows = this.db
+          .prepare(
+            `SELECT ge.*, gn.symbol_path as target_path, gn.symbol_type as target_type, gn.file_path as target_file_path
+             FROM graph_edges ge
+             LEFT JOIN graph_nodes gn ON ge.target_node_id = gn.node_id
+             WHERE ge.project_path = ? AND ge.source_node_id = ?`
+          )
+          .all(projectPath, nodeId) as any[];
+
+        for (const row of rows) {
+          results.push({
+            source_symbol: name,
+            target_symbol: row.target_path || row.target_node_name,
+            target_type: row.target_type || 'unresolved',
+            file_path: row.target_file_path || 'external',
+            relationship_type: row.relationship_type,
+            depth: currentDepth,
+          });
+          if (currentDepth < depth && row.target_node_id) {
+            queue.push({
+              nodeId: row.target_node_id,
+              name: row.target_path || row.target_node_name,
+              currentDepth: currentDepth + 1
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('findCallees failed:', err);
+    }
+    return results;
+  }
+
+  getImportGraph(projectPath: string, filePath?: string): any[] {
+    try {
+      let query = `
+        SELECT gn.file_path as source_file, ge.target_node_name as imported_module
+        FROM graph_edges ge
+        JOIN graph_nodes gn ON ge.source_node_id = gn.node_id
+        WHERE ge.project_path = ? AND ge.relationship_type = 'imports'
+      `;
+      const params: any[] = [projectPath];
+      if (filePath) {
+        query += ` AND gn.file_path = ?`;
+        params.push(filePath);
+      }
+      return this.db.prepare(query).all(...params) as any[];
+    } catch (err) {
+      console.warn('getImportGraph failed:', err);
+      return [];
+    }
+  }
+
+  tracePath(projectPath: string, sourceSymbol: string, targetSymbol: string): any[] {
+    try {
+      const queue: { current: string; path: any[] }[] = [];
+      const visited = new Set<string>();
+
+      // Resolve source node(s)
+      const sources = this.db
+        .prepare(`SELECT node_id, symbol_path FROM graph_nodes WHERE project_path = ? AND (symbol_path = ? OR symbol_name = ?)`)
+        .all(projectPath, sourceSymbol, sourceSymbol) as { node_id: string; symbol_path: string }[];
+
+      for (const src of sources) {
+        queue.push({ current: src.node_id, path: [{ symbol: src.symbol_path, type: 'start' }] });
+      }
+
+      while (queue.length > 0) {
+        const { current, path: currentPath } = queue.shift()!;
+        if (visited.has(current)) continue;
+        visited.add(current);
+
+        // Get current symbol name/path
+        const nodeInfo = this.db
+          .prepare(`SELECT symbol_path, symbol_name FROM graph_nodes WHERE node_id = ?`)
+          .get(current) as { symbol_path: string; symbol_name: string } | undefined;
+        
+        if (!nodeInfo) continue;
+
+        if (nodeInfo.symbol_path === targetSymbol || nodeInfo.symbol_name === targetSymbol) {
+          return currentPath;
+        }
+
+        const outgoing = this.db
+          .prepare(
+            `SELECT ge.target_node_id, ge.target_node_name, gn.symbol_path
+             FROM graph_edges ge
+             LEFT JOIN graph_nodes gn ON ge.target_node_id = gn.node_id
+             WHERE ge.project_path = ? AND ge.source_node_id = ? AND ge.relationship_type = 'calls'`
+          )
+          .all(projectPath, current) as any[];
+
+        for (const edge of outgoing) {
+          const nextNode = edge.target_node_id;
+          const nextName = edge.symbol_path || edge.target_node_name;
+          const newPath = [...currentPath, { symbol: nextName, edge_target_id: nextNode }];
+          
+          if (nextName === targetSymbol) {
+            return newPath;
+          }
+          
+          if (nextNode) {
+            queue.push({ current: nextNode, path: newPath });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('tracePath failed:', err);
+    }
+    return [];
+  }
+
   /** Guard: prove read-only enforcement (Spec 08.2 §6 Read-Only Enforcement test). */
   assertNoWrite(operation: string): never {
     throw new ReadOnlyViolationError(`SQLite.${operation}`);
