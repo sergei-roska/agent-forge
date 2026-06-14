@@ -113,8 +113,12 @@ export class SqliteReader {
     const cleanTerms = [...new Set(terms.map((t) => t.toLowerCase()).filter((t) => t.length > 1))];
     if (cleanTerms.length === 0) return [];
 
-    // Build a guarded OR predicate; bind every term as a LIKE parameter.
-    const likeClause = cleanTerms.map(() => 'LOWER(raw_text) LIKE ?').join(' OR ');
+    const likeClause = cleanTerms.map(() => '(LOWER(raw_text) LIKE ? OR LOWER(file_path) LIKE ? OR LOWER(ast_metadata) LIKE ?)').join(' OR ');
+    const params: string[] = [];
+    for (const t of cleanTerms) {
+      params.push(`%${t}%`, `%${t}%`, `%${t}%`);
+    }
+
     const rows = this.db
       .prepare(
         `SELECT * FROM chunks_queue
@@ -124,15 +128,33 @@ export class SqliteReader {
       .all(
         projectPath,
         SCHEMA_VERSION,
-        ...cleanTerms.map((t) => `%${t}%`),
-        // Over-fetch so the term-count ranking has room before truncation.
+        ...params,
         Math.max(limit * 4, limit),
       ) as QueueRow[];
 
     const hits = rows.map((r) => {
-      const hay = (r.raw_text ?? '').toLowerCase();
-      const score = cleanTerms.reduce((n, t) => (hay.includes(t) ? n + 1 : n), 0);
-      return { row: queueRowToChunk(r), rawScore: score };
+      const chunk = queueRowToChunk(r);
+      const hay = (chunk.text ?? '').toLowerCase();
+      const path = (chunk.file_path ?? '').toLowerCase();
+      const func = (chunk.function_name ?? '').toLowerCase();
+      const cls = (chunk.class_name ?? '').toLowerCase();
+      
+      let score = 0;
+      for (const t of cleanTerms) {
+        let weight = 0;
+        if (hay.includes(t)) weight += 1;
+        if (path.includes(t)) weight += 5;
+        if (func.includes(t) || cls.includes(t)) weight += 3;
+        
+        const isExactIdentifier = func === t || cls === t;
+        const isExactPath = path.endsWith(`/${t}`) || path === t || new RegExp(`/${t}\\.[a-z0-9]+$`).test(path);
+        if (isExactIdentifier) weight += 10;
+        if (isExactPath) weight += 10;
+
+        score += weight;
+      }
+
+      return { row: chunk, rawScore: score };
     });
 
     hits.sort((a, b) => b.rawScore - a.rawScore || (b.row.indexed_at ?? 0) - (a.row.indexed_at ?? 0));

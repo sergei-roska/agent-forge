@@ -36,7 +36,7 @@ export class ChunksQueueRepo {
         );
       }
       if (chunk.schema_version !== SCHEMA_VERSION) {
-        console.warn(
+        throw new Error(
           `[schema_version] Chunk ${chunk.chunk_id} has schema_version='${
             chunk.schema_version
           }', expected '${SCHEMA_VERSION}'. Possible version drift.`,

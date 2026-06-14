@@ -30,17 +30,17 @@ export class IndexStatsRepo {
       .run({ ...stats, updated_at: now });
   }
 
-  incrementVectorCount(projectPath: string, delta: number): void {
+  setVectorCount(projectPath: string, count: number): void {
     const now = Date.now();
     this.db
       .prepare(
         `INSERT INTO index_stats (project_path, vector_count, last_ivf_rebuild_at, updated_at)
          VALUES (?, ?, 0, ?)
          ON CONFLICT(project_path) DO UPDATE SET
-          vector_count = vector_count + ?,
+          vector_count = ?,
           updated_at   = ?`,
       )
-      .run(projectPath, delta, now, delta, now);
+      .run(projectPath, count, now, count, now);
   }
 
   updateLastIvfRebuild(projectPath: string, vectorCount: number): void {

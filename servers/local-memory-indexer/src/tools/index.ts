@@ -5,6 +5,7 @@ import { makePauseIndexingTool } from './pauseIndexing.js';
 import { makeResumeIndexingTool } from './resumeIndexing.js';
 import { makeGetIndexingStatusTool } from './getIndexingStatus.js';
 import { makeDoctorIndexTool } from './doctorIndex.js';
+import { makeDeleteProjectIndexTool } from './deleteProjectIndex.js';
 
 export function createIndexerTools(coordinator: RunCoordinator): ToolDefinition[] {
   return [
@@ -13,5 +14,6 @@ export function createIndexerTools(coordinator: RunCoordinator): ToolDefinition[
     makeResumeIndexingTool(coordinator),
     makeGetIndexingStatusTool(coordinator),
     makeDoctorIndexTool(),
+    makeDeleteProjectIndexTool(),
   ];
 }
