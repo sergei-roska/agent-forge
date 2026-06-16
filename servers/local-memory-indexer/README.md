@@ -43,7 +43,7 @@ process restarts via a SQLite checkpoint queue.
 | `include_globs` | string[] | — | Allowlist globs (e.g. `["src/**/*.ts"]`). |
 | `exclude_globs` | string[] | — | Additional exclusion globs. |
 | `max_file_size_kb` | integer | `512` | Skip files larger than this. |
-| `batch_size` | integer | `100` | Embedding batch size for Phase 2. |
+| `batch_size` | integer | `20` | Embedding batch size for Phase 2. |
 | `enrich` | boolean | `true` | Generate chunk summary + tags via LLM before embedding. |
 | `backend` | enum | `"auto"` | `"ollama"`, `"transformers_js"`, or `"auto"`. |
 | `priority` | enum | `"background"` | `"user_focus"`, `"recent"`, or `"background"`. |
@@ -65,8 +65,11 @@ Provide at least one of `run_id` or `project_path`.
 
 ## 🤖 Default Local Model Stack
 
-- embeddings: `qwen3-embedding:8b` via Ollama, with `Transformers.js` CPU fallback
-- chunk enrichment: `granite4:3b-h` via Ollama
+- embeddings: `qwen3-embedding:4b` via Ollama, with `Transformers.js` CPU fallback
+- chunk enrichment: `granite4.1:3b` via Ollama
+
+> [!NOTE]
+> This server stack is optimized to run smoothly on local setups, including laptop GPUs with 4 GB of VRAM.
 
 The search server must use the **same embedding model** that produced the index.
 
@@ -82,8 +85,8 @@ pnpm --filter @agent-forge/server-local-memory-indexer test
 Ensure Ollama is running and the embedding model is pulled:
 
 ```bash
-ollama pull qwen3-embedding:8b
-ollama pull granite4:3b-h   # optional, for chunk enrichment
+ollama pull qwen3-embedding:4b
+ollama pull granite4.1:3b   # optional, for chunk enrichment
 ```
 
 Typical workflow:
@@ -101,8 +104,8 @@ start_indexing(project_path: "/abs/path/to/project")
 | `LOCAL_VECTOR_SEARCH_DATA_ROOT` | `~/.agent-forge/local-memory-search` | Shared data root (must match the search server). |
 | `LOCAL_VECTOR_SEARCH_DEFAULT_PROJECT` | `process.cwd()` | Default `project_path` when omitted by downstream tools. |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama base URL. |
-| `EMBED_MODEL` | `qwen3-embedding:8b` | Embedding model override. |
-| `ENRICH_MODEL` | `granite4:3b-h` | Chunk enrichment model override. |
+| `EMBED_MODEL` | `qwen3-embedding:4b` | Embedding model override. |
+| `ENRICH_MODEL` | `granite4.1:3b` | Chunk enrichment model override. |
 | `MAX_FILE_SIZE_KB` | `512` | Default max file size for scanning. |
 
 Indexed data layout per project:

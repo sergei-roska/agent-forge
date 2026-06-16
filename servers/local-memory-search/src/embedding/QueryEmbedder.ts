@@ -57,7 +57,7 @@ export class QueryEmbedder {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: this.embedModel, input: [query] }),
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(30000),
     });
     if (!res.ok) throw new Error(`Ollama embed failed: ${res.status}`);
     const json = (await res.json()) as { embeddings?: number[][] };

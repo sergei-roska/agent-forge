@@ -72,9 +72,12 @@ Most search tools accept:
 
 ## 🤖 Default Local Model Stack
 
-- embeddings: `qwen3-embedding:8b` (must match the model the indexer used), with
+- embeddings: `qwen3-embedding:4b` (must match the model the indexer used), with
   a `Transformers.js` CPU fallback.
 - query-time re-ranking: `qwen3.5:9b`.
+
+> [!NOTE]
+> This server's query embedding timeout has been optimized (increased to 30s) to allow seamless model swapping on laptop GPUs with 4 GB of VRAM.
 
 ## 🚀 Quick Start (Forge)
 
@@ -94,7 +97,7 @@ Index a project first via **`local-memory-indexer`**, then query here.
 | `LOCAL_VECTOR_SEARCH_DATA_ROOT` | `~/.agent-forge/local-memory-search` | Shared data root (must match the indexer). |
 | `LOCAL_VECTOR_SEARCH_DEFAULT_PROJECT` | `process.cwd()` | Default `project_path` when omitted. |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama base URL. |
-| `EMBED_MODEL` | `qwen3-embedding:8b` | Query embedding model (must match indexer). |
+| `EMBED_MODEL` | `qwen3-embedding:4b` | Query embedding model (must match indexer). |
 | `RERANK_MODEL` | `qwen3.5:9b` | LLM re-ranker for `retrieve_context_pack`. |
 
 ## 🛠 MCP Client Configuration

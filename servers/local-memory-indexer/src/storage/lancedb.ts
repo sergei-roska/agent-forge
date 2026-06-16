@@ -15,11 +15,11 @@ import { lanceDbDir } from './paths.js';
 import { IndexerError, ErrorCode } from '../errors/codes.js';
 
 /**
- * Default vector dimension. qwen3-embedding:8b → 4096, Xenova/multilingual-e5-large → 1024.
+ * Default vector dimension. qwen3-embedding:4b → 2560, qwen3-embedding:8b → 4096, Xenova/multilingual-e5-large → 1024.
  * Always resolved at runtime via probeVectorDim() before the first LanceDB write.
  * Override with env var VECTOR_DIM if needed.
  */
-export const DEFAULT_VECTOR_DIM = Number(process.env['VECTOR_DIM'] ?? 4096);
+export const DEFAULT_VECTOR_DIM = Number(process.env['VECTOR_DIM'] ?? 2560);
 
 export const CHUNKS_TABLE = 'chunks';
 

@@ -13,7 +13,7 @@ export const CONTRACT_VERSION = '1.0';
 export const CHUNKS_TABLE = 'chunks';
 
 // ── Embedding / enrichment models (shared local stack) ───────────────────────
-export const DEFAULT_EMBED_MODEL = 'qwen3-embedding:8b';
+export const DEFAULT_EMBED_MODEL = 'qwen3-embedding:4b';
 export const DEFAULT_RERANK_MODEL = 'qwen3.5:9b';
 
 // ── RRF fusion defaults (Spec 08.2 §2.3 step 3) ──────────────────────────────

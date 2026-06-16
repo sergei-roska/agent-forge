@@ -26,7 +26,7 @@ export const startIndexingInputShape = {
   batch_size: z
     .number()
     .int()
-    .default(100)
+    .default(20)
     .describe('Embedding batch size for Phase 2.'),
   enrich: z
     .boolean()
@@ -67,7 +67,7 @@ export const START_INDEXING_JSON_SCHEMA = {
     include_globs:    { type: 'array', items: { type: 'string' } },
     exclude_globs:    { type: 'array', items: { type: 'string' } },
     max_file_size_kb: { type: 'integer', default: 512 },
-    batch_size:       { type: 'integer', default: 100 },
+    batch_size:       { type: 'integer', default: 20 },
     enrich:           { type: 'boolean', default: true },
     backend:          { type: 'string', enum: ['ollama', 'transformers_js', 'auto'], default: 'auto' },
     priority:         { type: 'string', enum: ['user_focus', 'recent', 'background'], default: 'background' },

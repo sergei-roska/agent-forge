@@ -6,10 +6,10 @@ export const MIN_COMPATIBLE_SCHEMA_VERSION = '1.0';
 /** Field name used in both SQLite chunks_queue and LanceDB chunks table. */
 export const SCHEMA_VERSION_FIELD = 'schema_version';
 
-export const DEFAULT_EMBED_MODEL = 'qwen3-embedding:8b';
-export const DEFAULT_ENRICH_MODEL = 'granite4:3b-h';
+export const DEFAULT_EMBED_MODEL = 'qwen3-embedding:4b';
+export const DEFAULT_ENRICH_MODEL = 'granite4.1:3b';
 
-export const DEFAULT_BATCH_SIZE_OLLAMA = 50;
+export const DEFAULT_BATCH_SIZE_OLLAMA = 20;
 export const DEFAULT_BATCH_SIZE_TRANSFORMERS = 25;
 
 export const DEFAULT_MAX_FILE_SIZE_KB = 512;
