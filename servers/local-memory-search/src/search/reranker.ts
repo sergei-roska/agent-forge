@@ -44,6 +44,7 @@ export async function rerankWithLlm(
         model: cfg.rerankModel,
         prompt,
         stream: false,
+        format: 'json',
         options: { temperature: 0 },
       }),
       signal: AbortSignal.timeout(20_000),
@@ -52,29 +53,62 @@ export async function rerankWithLlm(
 
     const json = (await res.json()) as { response?: string };
     const order = parseOrder(json.response ?? '', candidates.length);
-    if (!order) return { results, applied: false };
+    if (!order || order.length === 0) return { results, applied: false };
 
-    const reordered = order.map((idx) => candidates[idx]!);
+    const uniqueIndices = Array.from(new Set(order));
+    if (uniqueIndices.length === 0) return { results, applied: false };
+
+    const reordered = uniqueIndices.map((idx) => candidates[idx]!);
+    const remaining = candidates.filter((_, idx) => !uniqueIndices.includes(idx));
+
     // Preserve any tail beyond the reranked window.
     const tail = results.slice(candidates.length);
-    return { results: [...reordered, ...tail], applied: true };
+    return { results: [...reordered, ...remaining, ...tail], applied: true };
   } catch {
     return { results, applied: false };
   }
 }
 
-function parseOrder(text: string, n: number): number[] | null {
-  const match = text.match(/\[[\s\S]*?\]/);
-  if (!match) return null;
-  let parsed: unknown;
+export function parseOrder(text: string, n: number): number[] | null {
+  const cleaned = text.trim();
+
+  // 1. Try parsing directly as JSON
   try {
-    parsed = JSON.parse(match[0]);
+    const parsed = JSON.parse(cleaned);
+    const order = extractArray(parsed, n);
+    if (order) return order;
   } catch {
-    return null;
+    // fallback to regex
   }
-  if (!Array.isArray(parsed)) return null;
-  const order = parsed.map((x) => Number(x)).filter((x) => Number.isInteger(x) && x >= 0 && x < n);
-  // Must be a valid permutation of [0, n).
-  if (new Set(order).size !== n) return null;
-  return order;
+
+  // 2. Try regex extraction of first bracketed block
+  const match = cleaned.match(/\[[\s\S]*?\]/);
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[0]);
+      const order = extractArray(parsed, n);
+      if (order) return order;
+    } catch {
+      // ignore
+    }
+  }
+
+  return null;
+}
+
+function extractArray(val: unknown, n: number): number[] | null {
+  if (Array.isArray(val)) {
+    return val.map((x) => Number(x)).filter((x) => Number.isInteger(x) && x >= 0 && x < n);
+  }
+  if (typeof val === 'object' && val !== null) {
+    // Look for any array property
+    for (const key of Object.keys(val)) {
+      const prop = (val as Record<string, unknown>)[key];
+      if (Array.isArray(prop)) {
+        const order = prop.map((x) => Number(x)).filter((x) => Number.isInteger(x) && x >= 0 && x < n);
+        if (order.length > 0) return order;
+      }
+    }
+  }
+  return null;
 }

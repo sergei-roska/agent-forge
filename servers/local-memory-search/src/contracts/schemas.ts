@@ -75,7 +75,7 @@ export const retrieveContextPackShape = {
   max_chars: z.number().int().min(1).default(DEFAULT_CONTEXT_PACK_MAX_CHARS).describe('Total character budget for all excerpts.'),
   include_neighbors: z.boolean().default(true),
   neighbor_hops: z.number().int().min(0).max(3).default(1),
-  rerank: z.boolean().default(false).describe('Enable qwen3.5:9b LLM re-ranking.'),
+  rerank: z.boolean().default(false).describe('Enable granite4.1:3b LLM re-ranking.'),
   truncate_strategy: z.enum(['middle', 'tail', 'head']).default('middle'),
   filters: filtersShape,
   alpha: z.number().min(0).max(1).default(DEFAULT_ALPHA),

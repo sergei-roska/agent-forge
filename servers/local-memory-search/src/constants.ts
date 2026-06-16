@@ -14,7 +14,7 @@ export const CHUNKS_TABLE = 'chunks';
 
 // ── Embedding / enrichment models (shared local stack) ───────────────────────
 export const DEFAULT_EMBED_MODEL = 'qwen3-embedding:4b';
-export const DEFAULT_RERANK_MODEL = 'qwen3.5:9b';
+export const DEFAULT_RERANK_MODEL = 'granite4.1:3b';
 
 // ── RRF fusion defaults (Spec 08.2 §2.3 step 3) ──────────────────────────────
 export const DEFAULT_ALPHA = 0.65;
