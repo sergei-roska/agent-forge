@@ -4,8 +4,11 @@ import { RuntimeResolver } from '../runtime/runtimeResolver.js';
 
 export const inspectPermissionsTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_permissions',
-  description: 'List user permissions and their providers.',
-  inputSchema: SharedArgsSchema.shape,
+  description: 'List permission definitions. Returns permission machine_name and title. Use for access-control or role analysis.',
+  inputSchema: {
+    ...SharedArgsSchema.shape,
+    query: z.string().optional().describe('Filter by permission machine_name substring.'),
+  },
   handler: async (args) => {
     const resolver = new RuntimeResolver(rootDir);
     const data = await resolver.inspectPermissions(args.query as string);

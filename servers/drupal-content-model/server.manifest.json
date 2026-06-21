@@ -2,7 +2,7 @@
   "id": "drupal-content-model",
   "name": "drupal-content-model",
   "version": "0.1.0",
-  "description": "Explains editorial structures, content entity types, fields usage, and content moderation in Drupal.",
+  "description": "Drupal content model: bundles, fields, entity references, display modes, revision, translation, moderation.",
   "domain": "content-architecture",
   "source_of_truth": "runtime"
 }

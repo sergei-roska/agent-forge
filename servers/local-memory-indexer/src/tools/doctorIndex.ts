@@ -10,7 +10,7 @@ export function makeDoctorIndexTool(): ToolDefinition {
   return {
     name: 'doctor_index',
     description:
-      'Diagnose index consistency (SQLite, LanceDB, FTS, fingerprints) and optionally auto-fix safe issues. Run start_indexing after auto-fix if chunks were marked pending.',
+      'Diagnose SQLite/LanceDB/FTS/fingerprint consistency. auto_fix repairs safe issues; run start_indexing if chunks marked pending.',
     inputSchema: doctorIndexInputShape,
 
     handler: async (rawArgs) => {

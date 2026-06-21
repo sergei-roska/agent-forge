@@ -8,10 +8,10 @@ export const traceConfigDependenciesTool = (
   configDir: string,
 ): ToolDefinition => ({
   name: 'trace_config_dependencies',
-  description: 'Explain dependencies for a config object from sync config.',
+  description: 'Trace config dependency graph from sync storage. Returns requires/required_by lists. Use before delete or rename.',
   inputSchema: {
     ...SharedArgsSchema.shape,
-    config_name: z.string().describe('The machine name of the config object.'),
+    config_name: z.string().describe('Root config machine name.'),
   } as any,
   handler: async (args) => {
     const adapter = new ConfigAnalysisAdapter(client, configDir);

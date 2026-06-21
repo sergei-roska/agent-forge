@@ -2,7 +2,7 @@
   "id": "drupal-runtime-inspect",
   "version": "0.1.0",
   "name": "Drupal Runtime Inspect",
-  "description": "Live introspection of Drupal runtime state through Drupal APIs — entity types, bundles, fields, modules, themes, routes, permissions, plugins, services, menus, vocabularies.",
+  "description": "Live Drupal runtime state via Drush/APIs: entity types, bundles, fields, modules, themes, routes, permissions, plugins, services, menus, vocabularies.",
   "capabilities": { "tools": true, "resources": false, "prompts": false },
   "domain": "runtime-truth",
   "source_of_truth": "runtime",

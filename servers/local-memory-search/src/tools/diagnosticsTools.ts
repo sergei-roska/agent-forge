@@ -20,7 +20,7 @@ const startedAt = Date.now();
 export function makeHealthCheckTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'health_check',
-    description: 'Report search-service readiness: LanceDB access, embedding backend, FTS presence, schema_version, and partial-index capability flags (verbose=true).',
+    description: 'Check search readiness: LanceDB, embeddings, FTS, schema_version. Set verbose=true for capabilities and doctor summary.',
     inputSchema: healthCheckShape,
     handler: async (raw) => {
       const a = HealthCheckSchema.parse(raw);
@@ -109,7 +109,7 @@ export function makeHealthCheckTool(engine: SearchEngine): ToolDefinition {
 export function makeIndexStatusTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'index_status',
-    description: 'Show indexed file/chunk counts, freshness, and current search capability flags for a project. Reads LanceDB + SQLite (read-only).',
+    description: 'Report index counts, freshness, and enabled search modes. Use before searching to pick search_hybrid vs search_keyword.',
     inputSchema: indexStatusShape,
     handler: async (raw) => {
       const a = IndexStatusSchema.parse(raw);
@@ -191,7 +191,7 @@ export function makeDoctorIndexTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'doctor_index',
     description:
-      'Diagnose index consistency across LanceDB, SQLite, FTS, and schema_version. Read-only on this service; use auto_fix on the Indexer doctor_index to repair.',
+      'Diagnose LanceDB/SQLite/FTS/schema inconsistencies (read-only). Repairs: Indexer doctor_index with auto_fix=true.',
     inputSchema: doctorIndexShape,
     handler: async (raw) => {
       const a = DoctorIndexSchema.parse(raw);
@@ -219,7 +219,7 @@ export function makeDoctorIndexTool(engine: SearchEngine): ToolDefinition {
 export function makeExplainMatchTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'explain_match',
-    description: 'Explain why a chunk matched: vector score, FTS score, identifier-boost hits, and recency boost.',
+    description: 'Explain ranking for one search hit. Pass same query + result_id (chunk_id) from search_hybrid.',
     inputSchema: explainMatchShape,
     handler: async (raw) => {
       const parsed = ExplainMatchSchema.safeParse(raw);

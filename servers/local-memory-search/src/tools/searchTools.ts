@@ -14,7 +14,7 @@ export function makeSearchHybridTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'search_hybrid',
     description:
-      'Hybrid semantic + keyword search over indexed project chunks. Combines vector similarity and BM25 via Reciprocal Rank Fusion. Degrades gracefully to keyword-only if the vector index is unavailable.',
+      'Search indexed chunks: vector ANN + BM25 fused via RRF. Default tool for mixed concept + identifier queries. Falls back to keyword-only if vectors unavailable.',
     inputSchema: searchHybridShape,
     handler: async (raw) => {
       const parsed = SearchHybridSchema.safeParse(raw);
@@ -49,7 +49,7 @@ export function makeSearchHybridTool(engine: SearchEngine): ToolDefinition {
 export function makeSearchSemanticTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'search_semantic',
-    description: 'Pure vector ANN (semantic) search over indexed chunks. No keyword/BM25 leg. Falls back with a warning if the embedding backend or vector index is unavailable.',
+    description: 'Vector ANN search only (no BM25). Use for conceptual/natural-language queries. Requires embedded vectors.',
     inputSchema: searchSemanticShape,
     handler: async (raw) => {
       const parsed = SearchSemanticSchema.safeParse(raw);
@@ -78,7 +78,7 @@ export function makeSearchSemanticTool(engine: SearchEngine): ToolDefinition {
 export function makeSearchKeywordTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'search_keyword',
-    description: 'Pure BM25/FTS keyword search over indexed chunks. No vector leg. Falls back to SQLite LIKE if the FTS index is missing.',
+    description: 'BM25/FTS keyword search only (no vectors). Use for exact names, symbols, literals. Falls back to SQLite LIKE if FTS missing.',
     inputSchema: searchKeywordShape,
     handler: async (raw) => {
       const parsed = SearchKeywordSchema.safeParse(raw);

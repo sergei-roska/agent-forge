@@ -3,7 +3,7 @@ import { RuntimeResolver } from '../runtime/runtimeResolver.js';
 
 export const inspectVocabulariesTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_vocabularies',
-  description: 'List taxonomy vocabularies.',
+  description: 'List taxonomy vocabularies. Returns vid and name. Use before term or reference field analysis.',
   inputSchema: SharedArgsSchema.shape,
   handler: async (args) => {
     const resolver = new RuntimeResolver(rootDir);

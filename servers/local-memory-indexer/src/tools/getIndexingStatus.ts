@@ -9,7 +9,7 @@ export function makeGetIndexingStatusTool(coordinator: RunCoordinator): ToolDefi
   return {
     name: 'get_indexing_status',
     description:
-      'Return detailed progress, ETA, and chunk counts for an indexing run. Omit run_id to get the most recent run for the project.',
+      'Poll run progress: phase, status, ETA, chunk/file counts, warnings. Pass run_id or project_path (latest run).',
     inputSchema: getIndexingStatusInputShape,
 
     handler: async (rawArgs) => {

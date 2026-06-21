@@ -4,7 +4,7 @@ import { RuntimeResolver } from '../runtime/runtimeResolver.js';
 
 export const inspectThemesTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_themes',
-  description: 'List installed themes and identify the active default/admin theme.',
+  description: 'List installed themes. Returns machine_name, name, is_default. Use to find the active theme at runtime.',
   inputSchema: SharedArgsSchema.shape,
   handler: async (args) => {
     const resolver = new RuntimeResolver(rootDir);

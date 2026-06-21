@@ -28,7 +28,7 @@ const getRootDir = (args: any) => args.project_root || process.cwd();
 export const debugTools: any[] = [
   {
     name: 'debug_watchdog',
-    description: 'Retrieve bounded slices of Drupal log entries with filters.',
+    description: 'Query watchdog DB logs. Returns wid, severity, type, message, timestamp. Use for errors, PHP exceptions, cron failures.',
     inputSchema: WatchdogSchema.shape,
     handler: async (args: any) => {
       const runner = new DrushRunner(getRootDir(args));
@@ -43,7 +43,7 @@ export const debugTools: any[] = [
   },
   {
     name: 'debug_queue_state',
-    description: 'Summarize queue backlogs and item counts.',
+    description: 'List queue table backlog per name. Returns item_count, oldest_item_age. Use for stuck batch/cron queues.',
     inputSchema: QueueStateSchema.shape,
     handler: async (args: any) => {
       const runner = new DrushRunner(getRootDir(args));
@@ -57,7 +57,7 @@ export const debugTools: any[] = [
   },
   {
     name: 'debug_cron_state',
-    description: 'Check cron execution history and status.',
+    description: 'Report cron last_run and status (OK/STALE/NEVER_RUN). Returns is_running lock. Use when cron may be stale.',
     inputSchema: CronStateSchema.shape,
     handler: async (args: any) => {
       const runner = new DrushRunner(getRootDir(args));
@@ -71,7 +71,7 @@ export const debugTools: any[] = [
   },
   {
     name: 'debug_cache_state',
-    description: 'Summarize cache bin health and sizes.',
+    description: 'Inspect cache bins (default, render, config, etc.). Returns EXISTS or entry_count/stale_count. Use for cache bloat.',
     inputSchema: CacheStateSchema.shape,
     handler: async (args: any) => {
       const runner = new DrushRunner(getRootDir(args));
@@ -85,7 +85,7 @@ export const debugTools: any[] = [
   },
   {
     name: 'debug_update_state',
-    description: 'Check for pending schema or entity updates.',
+    description: 'Detect pending schema (hook_update_N) and entity definition updates. Returns modules + update numbers. Use before updb.',
     inputSchema: UpdateStateSchema.shape,
     handler: async (args: any) => {
        const runner = new DrushRunner(getRootDir(args));
@@ -99,7 +99,7 @@ export const debugTools: any[] = [
   },
   {
     name: 'debug_environment_summary',
-    description: 'Safe system diagnostics (Versions, Drivers, Site Path).',
+    description: 'Safe runtime snapshot: Drupal version, maintenance_mode, optional PHP/DB/cache backend. No secrets.',
     inputSchema: EnvironmentSummarySchema.shape,
     handler: async (args: any) => {
        const runner = new DrushRunner(getRootDir(args));
@@ -113,7 +113,7 @@ export const debugTools: any[] = [
   },
   {
     name: 'debug_state_system',
-    description: 'Inspect selected Drupal state keys (security allowlisted).',
+    description: 'Read allowlisted state keys (system.*, cron, maintenance). Non-allowlisted keys rejected. Use for cron_last, maintenance_mode.',
     inputSchema: StateSystemSchema.shape,
     handler: async (args: any) => {
        const runner = new DrushRunner(getRootDir(args));
@@ -127,7 +127,7 @@ export const debugTools: any[] = [
   },
   {
     name: 'debug_runtime_health',
-    description: 'Compact operational health summary with drill-down pointers.',
+    description: 'Aggregate health check: maintenance, pending updates, cron status. Returns alerts + optional next_steps. Use for quick site triage.',
     inputSchema: RuntimeHealthSchema.shape,
     handler: async (args: any) => {
       const runner = new DrushRunner(getRootDir(args));
@@ -142,7 +142,7 @@ export const debugTools: any[] = [
   },
   {
     name: 'debug_failed_operations',
-    description: 'Aggregate recent failures across watchdog, queues, cron, and updates.',
+    description: 'Cross-domain failure scan: watchdog errors, stale queues, cron, pending updates. Returns failure list + count. Use after incidents.',
     inputSchema: FailedOperationsSchema.shape,
     handler: async (args: any) => {
       const runner = new DrushRunner(getRootDir(args));

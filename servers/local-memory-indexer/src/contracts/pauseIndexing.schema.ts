@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const pauseIndexingInputShape = {
-  run_id: z.string().describe('The run_id returned by start_indexing.'),
+  run_id: z.string().describe('run_id from start_indexing.'),
 } as const;
 
 export const PauseIndexingInputSchema = z.object(pauseIndexingInputShape);
@@ -20,6 +20,6 @@ export const PAUSE_INDEXING_JSON_SCHEMA = {
   type: 'object',
   required: ['run_id'],
   properties: {
-    run_id: { type: 'string', description: 'The run_id returned by start_indexing.' },
+    run_id: { type: 'string', description: 'run_id from start_indexing.' },
   },
 } as const;

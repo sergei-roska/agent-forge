@@ -8,7 +8,7 @@ export function makePauseIndexingTool(coordinator: RunCoordinator): ToolDefiniti
   return {
     name: 'pause_indexing',
     description:
-      'Gracefully pause an active Phase 2 embedding run. The current batch completes before pausing. State is checkpointed in SQLite for resumption via start_indexing.',
+      'Pause Phase 2 embedding after current batch. Checkpoint in SQLite; resume with resume_indexing or start_indexing(phases:["embedding"]).',
     inputSchema: pauseIndexingInputShape,
 
     handler: async (rawArgs) => {

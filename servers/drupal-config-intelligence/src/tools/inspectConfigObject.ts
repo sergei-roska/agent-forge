@@ -5,11 +5,12 @@ import type { DrupalClient } from '@agent-forge/drupal-api-client';
 
 export const inspectConfigObjectTool = (client: DrupalClient, configDir: string): ToolDefinition => ({
   name: 'inspect_config_object',
-  description: 'Read one config object from active or sync storage.',
+  description: 'Read one Drupal config as JSON. Returns active DB and/or sync YAML values. Use to inspect a single machine name.',
   inputSchema: {
     ...SharedArgsSchema.shape,
-    config_name: z.string().describe('The machine name of the config object (e.g. system.site).'),
-    source: z.enum(['active', 'sync', 'both']).default('both').describe('Which storage to read from.'),
+    config_name: z.string().describe('Config machine name. Examples: system.site, node.type.article.'),
+    source: z.enum(['active', 'sync', 'both']).default('both')
+      .describe('active=DB, sync=config/sync export, both=compare side-by-side.'),
   } as any,
   handler: async (args) => {
     const adapter = new ConfigAnalysisAdapter(client, configDir);

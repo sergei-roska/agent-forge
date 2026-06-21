@@ -4,10 +4,10 @@ import { RuntimeResolver } from '../runtime/runtimeResolver.js';
 
 export const inspectBundlesTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_bundles',
-  description: 'List bundles for a given entity type.',
+  description: 'List bundles for one entity type. Returns bundle machine_name and label. Use after inspect_entity_types when entity_type_id is known.',
   inputSchema: {
     ...SharedArgsSchema.shape,
-    entity_type_id: z.string().describe('The entity type ID (e.g. node, taxonomy_term).'),
+    entity_type_id: z.string().describe('Entity type machine_name. Examples: node, taxonomy_term, media.'),
   },
   handler: async (args) => {
     const resolver = new RuntimeResolver(rootDir);

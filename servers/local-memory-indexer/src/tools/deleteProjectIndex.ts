@@ -10,7 +10,7 @@ export function makeDeleteProjectIndexTool(): ToolDefinition {
   return {
     name: 'delete_project_index',
     description:
-      'Completely deletes the local index (SQLite and LanceDB) for a given project path. Use this to reset a corrupted index or resolve schema version drift before forcing a new index run.',
+      'Delete all index data (SQLite + LanceDB) for project. Use before force re-index on corruption or schema drift.',
     inputSchema: deleteProjectIndexInputShape,
 
     handler: async (rawArgs) => {

@@ -2,7 +2,7 @@
   "id": "web-observe-capture",
   "name": "Web Observe & Capture",
   "version": "0.1.0",
-  "description": "Browser automation server for screenshots, DOM snapshots, and layout analysis.",
+  "description": "Headless browser observation: screenshots, bounded DOM excerpts, layout geometry, structural snapshots.",
   "domain": "observation",
   "source_of_truth": "browser",
   "capabilities": {

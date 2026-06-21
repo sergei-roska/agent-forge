@@ -1,7 +1,7 @@
 {
   "id": "local-memory-search",
   "name": "Local Memory Search",
-  "description": "Read-only consumer: hybrid semantic + keyword (RRF) search, context packs, chunk navigation, and health diagnostics over the shared LanceDB index. Degrades gracefully to keyword/SQLite when the vector index or embedding backend is unavailable.",
+  "description": "Read-only search over shared LanceDB index: hybrid/semantic/keyword retrieval, context packs, call/import graph, diagnostics. Falls back to keyword/SQLite when vectors or embeddings unavailable.",
   "version": "1.0.0",
   "capabilities": {
     "tools": true

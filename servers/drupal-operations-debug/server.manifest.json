@@ -1,7 +1,7 @@
 {
   "id": "drupal-operations-debug",
   "name": "Drupal Operations & Debug",
-  "description": "Runtime diagnostics, watchdog analysis, and health monitoring.",
+  "description": "Drupal runtime ops: watchdog logs, queues, cron, cache, updates, health.",
   "version": "0.1.0",
   "capabilities": {
     "tools": true

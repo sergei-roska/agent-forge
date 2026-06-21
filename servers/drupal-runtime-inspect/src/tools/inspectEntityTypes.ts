@@ -2,16 +2,16 @@ import { z } from 'zod';
 import { SharedArgsSchema, buildEnvelope, type ToolDefinition } from '@agent-forge/mcp-core';
 import { RuntimeResolver } from '../runtime/runtimeResolver.js';
 
-const PaginatedArgsSchema = {
-  ...SharedArgsSchema.shape,
-  limit: z.number().int().min(1).max(500).optional().describe('Number of items to return.'),
-  offset: z.number().int().min(0).optional().describe('Number of items to skip.'),
-};
-
 export const inspectEntityTypesTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_entity_types',
-  description: 'List entity type IDs, labels, providers, and high-level capabilities.',
-  inputSchema: { ...PaginatedArgsSchema },
+  description: 'List registered entity types. Returns entity_type_id, label, provider, class, handlers. Use before bundle/field lookups or to confirm a type exists at runtime.',
+  inputSchema: {
+    ...SharedArgsSchema.shape,
+    query: z.string().optional().describe('Filter by entity_type_id or label substring (case-insensitive).'),
+    fields: z.array(z.string()).optional().describe('Response keys to keep. Examples: entity_type_id, label, provider.'),
+    limit: z.number().int().min(1).max(500).optional().describe('Max items. Integer 1–500. Default 100.'),
+    offset: z.number().int().min(0).optional().describe('Skip N items for pagination.'),
+  },
   handler: async (args) => {
     const resolver = new RuntimeResolver(rootDir);
     const data = await resolver.inspectEntityTypes({

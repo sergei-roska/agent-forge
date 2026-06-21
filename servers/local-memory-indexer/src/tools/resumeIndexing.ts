@@ -9,7 +9,7 @@ export function makeResumeIndexingTool(coordinator: RunCoordinator): ToolDefinit
   return {
     name: 'resume_indexing',
     description:
-      'Resume a paused Phase 2 embedding run. Equivalent to start_indexing with phases: [embedding] on the same project.',
+      'Resume paused Phase 2 embedding from checkpoint. Equivalent to start_indexing(phases:["embedding"]).',
     inputSchema: resumeIndexingInputShape,
 
     handler: async (rawArgs) => {

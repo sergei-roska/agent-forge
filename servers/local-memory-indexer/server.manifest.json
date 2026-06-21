@@ -1,7 +1,7 @@
 {
   "id": "local-memory-indexer",
   "name": "Local Memory Indexer",
-  "description": "Write-only producer: discovers files, AST/semantic-chunks, and embeds into LanceDB. Fire-and-forget API with resumable two-phase indexing.",
+  "description": "Write-only index producer: AST/semantic chunking → LanceDB. Async two-phase runs (discovery, embedding); resumable via SQLite checkpoints.",
   "version": "0.1.0",
   "capabilities": {
     "tools": true

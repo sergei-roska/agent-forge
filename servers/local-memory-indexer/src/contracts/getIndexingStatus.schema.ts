@@ -4,8 +4,8 @@ export const getIndexingStatusInputShape = {
   run_id: z
     .string()
     .optional()
-    .describe('If omitted, returns the most recent run for the default project.'),
-  project_path: z.string().optional().describe('Used only when run_id is omitted.'),
+    .describe('Specific run_id from start_indexing.'),
+  project_path: z.string().optional().describe('With run_id omitted: latest run for this project path.'),
 } as const;
 
 export const GetIndexingStatusInputSchema = z.object(getIndexingStatusInputShape);
@@ -54,7 +54,7 @@ export interface GetIndexingStatusOutput {
 export const GET_INDEXING_STATUS_JSON_SCHEMA = {
   type: 'object',
   properties: {
-    run_id:       { type: 'string', description: 'If omitted, returns the most recent run for the default project.' },
-    project_path: { type: 'string', description: 'Used only when run_id is omitted.' },
+    run_id:       { type: 'string', description: 'Specific run_id from start_indexing.' },
+    project_path: { type: 'string', description: 'With run_id omitted: latest run for this project path.' },
   },
 } as const;

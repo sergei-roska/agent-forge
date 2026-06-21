@@ -3,7 +3,7 @@ import { RuntimeResolver } from '../runtime/runtimeResolver.js';
 
 export const inspectMenusTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_menus',
-  description: 'List all menus defined in the system.',
+  description: 'List menu config entities. Returns id and label. Use before menu link or navigation analysis.',
   inputSchema: SharedArgsSchema.shape,
   handler: async (args) => {
     const resolver = new RuntimeResolver(rootDir);

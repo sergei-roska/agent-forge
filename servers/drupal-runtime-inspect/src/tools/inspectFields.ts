@@ -4,11 +4,11 @@ import { RuntimeResolver } from '../runtime/runtimeResolver.js';
 
 export const inspectFieldsTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_fields',
-  description: 'List base and configurable fields known at runtime.',
+  description: 'List field definitions for an entity type. Returns field_name, field_type, label, required, translatable. Omit bundle for base fields; set bundle for bundle-specific fields.',
   inputSchema: {
     ...SharedArgsSchema.shape,
-    entity_type_id: z.string().describe('The entity type ID.'),
-    bundle: z.string().optional().describe('Filter fields by bundle name.'),
+    entity_type_id: z.string().describe('Entity type machine_name. Examples: node, user, taxonomy_term.'),
+    bundle: z.string().optional().describe('Bundle machine_name. Examples: article, page. Omit for base fields only.'),
   },
   handler: async (args) => {
     const resolver = new RuntimeResolver(rootDir);

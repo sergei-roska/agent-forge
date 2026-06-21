@@ -13,7 +13,7 @@ import { validateProject } from './shared.js';
 export function makeFindCallersTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'find_callers',
-    description: 'Find all symbols (functions, methods) that call a given symbol within the project using graph traversal.',
+    description: 'List symbols that call symbol_name (call-graph upstream). Use for "who calls X?". Requires SQLite call graph.',
     inputSchema: findCallersShape,
     handler: async (raw) => {
       const parsed = FindCallersSchema.safeParse(raw);
@@ -39,7 +39,7 @@ export function makeFindCallersTool(engine: SearchEngine): ToolDefinition {
 export function makeFindCalleesTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'find_callees',
-    description: 'Find all symbols called by a given symbol within the project using graph traversal.',
+    description: 'List symbols called by symbol_name (call-graph downstream). Use for "what does X call?". Requires SQLite call graph.',
     inputSchema: findCalleesShape,
     handler: async (raw) => {
       const parsed = FindCalleesSchema.safeParse(raw);
@@ -65,7 +65,7 @@ export function makeFindCalleesTool(engine: SearchEngine): ToolDefinition {
 export function makeGetImportGraphTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'get_import_graph',
-    description: 'Get import/dependency graph relationships for a file or the entire project.',
+    description: 'List import/dependency edges. Omit file_path for project-wide graph; set file_path for one file.',
     inputSchema: getImportGraphShape,
     handler: async (raw) => {
       const parsed = GetImportGraphSchema.safeParse(raw);
@@ -91,7 +91,7 @@ export function makeGetImportGraphTool(engine: SearchEngine): ToolDefinition {
 export function makeTracePathTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'trace_path',
-    description: 'Find call chain/execution path between source and target symbols.',
+    description: 'Find call chain from source_symbol to target_symbol. Use for execution-flow / call-path questions.',
     inputSchema: tracePathShape,
     handler: async (raw) => {
       const parsed = TracePathSchema.safeParse(raw);

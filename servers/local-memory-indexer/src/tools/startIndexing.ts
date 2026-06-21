@@ -9,7 +9,7 @@ export function makeStartIndexingTool(coordinator: RunCoordinator): ToolDefiniti
   return {
     name: 'start_indexing',
     description:
-      'Start a two-phase indexing run for a project. Phase 1 scans and chunks files into the queue (SQLite). Phase 2 embeds pending chunks into LanceDB. Returns immediately with a run_id; poll get_indexing_status for progress.',
+      'Start async indexing: discovery (scan/chunk → SQLite), embedding (vectors → LanceDB). Returns run_id; poll get_indexing_status.',
     inputSchema: startIndexingInputShape,
 
     handler: async (rawArgs) => {

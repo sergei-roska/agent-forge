@@ -31,7 +31,7 @@ export function makeRetrieveContextPackTool(engine: SearchEngine): ToolDefinitio
   return {
     name: 'retrieve_context_pack',
     description:
-      'Return an agent-ready, token-budgeted context package for the top relevant files and chunks. Includes optional neighbor chunk expansion and LLM re-ranking.',
+      'Build token-budgeted excerpt pack from top hits. Use to load code context into LLM prompts. Optional neighbor expansion and rerank.',
     inputSchema: retrieveContextPackShape,
     handler: async (raw) => {
       const parsed = RetrieveContextPackSchema.safeParse(raw);
@@ -76,7 +76,7 @@ export function makeReadChunkNeighborsTool(engine: SearchEngine): ToolDefinition
   return {
     name: 'read_chunk_neighbors',
     description:
-      'Retrieve the N chunks immediately before and after a given chunk within the same file. Enables context expansion around a search hit.',
+      'Load adjacent chunks (same file) before/after chunk_id. Use to widen context around a search hit.',
     inputSchema: readChunkNeighborsShape,
     handler: async (raw) => {
       const parsed = ReadChunkNeighborsSchema.safeParse(raw);
@@ -112,7 +112,7 @@ export function makeReadChunkNeighborsTool(engine: SearchEngine): ToolDefinition
 export function makeGetChunkTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'get_chunk',
-    description: 'Fetch one indexed chunk by its stable chunk_id.',
+    description: 'Fetch one chunk by chunk_id. Use after search tools return chunk_ids.',
     inputSchema: getChunkShape,
     handler: async (raw) => {
       const parsed = GetChunkSchema.safeParse(raw);
@@ -163,7 +163,7 @@ export function makeSearchSimilarTool(engine: SearchEngine): ToolDefinition {
   return {
     name: 'search_similar',
     description:
-      'Find code chunks similar to a specific file (optionally a specific function) via vector ANN on its stored embedding.',
+      'Find chunks similar to a file/function via stored embedding. Use for "code like X" without a text query. Requires vectors.',
     inputSchema: searchSimilarShape,
     handler: async (raw) => {
       const parsed = SearchSimilarSchema.safeParse(raw);

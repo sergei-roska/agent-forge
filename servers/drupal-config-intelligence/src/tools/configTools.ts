@@ -14,11 +14,13 @@ import { DeploymentRisk } from '../analysis/risk.js';
 
 export const inspectConfigObjectTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_config_object',
-  description: 'Read one config object from active or sync storage with compact projection.',
+  description: 'Read one Drupal config as JSON. Returns active DB and/or sync YAML values. Use to inspect a single machine name.',
   inputSchema: {
-    config_name: z.string().describe('Full config name (e.g. system.site, node.type.article).'),
-    source: z.enum(['active', 'sync', 'both']).default('active'),
-    include_overrides: z.boolean().default(true).describe('Include configuration overrides from settings.php (Active only).'),
+    config_name: z.string().describe('Config machine name. Examples: system.site, node.type.article.'),
+    source: z.enum(['active', 'sync', 'both']).default('active')
+      .describe('active=DB, sync=config/sync export, both=compare side-by-side.'),
+    include_overrides: z.boolean().default(true)
+      .describe('Merge settings.php overrides into active. Active source only.'),
   } as any,
   handler: async (args) => {
     try {
@@ -60,10 +62,11 @@ export const inspectConfigObjectTool = (rootDir: string): ToolDefinition => ({
 
 export const diffActiveVsSyncTool = (rootDir: string): ToolDefinition => ({
   name: 'diff_active_vs_sync',
-  description: 'Compare active and sync config for a named object or filtered set.',
+  description: 'Diff one config: active DB vs sync export. Returns status, changed keys, risk_level. Use before cim/cex.',
   inputSchema: {
-    config_name: z.string().describe('Target config name.'),
-    include_patch: z.boolean().default(false).describe('Include full patch data.'),
+    config_name: z.string().describe('Config machine name to diff.'),
+    include_patch: z.boolean().default(false)
+      .describe('Include full JSON patch. Default false (changed-key summary only).'),
   } as any,
   handler: async (args) => {
     try {
@@ -87,11 +90,12 @@ export const diffActiveVsSyncTool = (rootDir: string): ToolDefinition => ({
 
 export const traceConfigDependenciesTool = (rootDir: string): ToolDefinition => ({
   name: 'trace_config_dependencies',
-  description: 'Explain direct and bounded transitive dependencies for a config object.',
+  description: 'Trace config dependency graph. Returns requires and/or required_by lists. Use before delete or rename.',
   inputSchema: {
-    config_name: z.string().describe('Config name to trace.'),
-    max_depth: z.number().default(3).describe('Maximum depth for transitive dependencies.'),
-    direction: z.enum(['requires', 'required_by', 'both']).default('both').describe('Trace direction.'),
+    config_name: z.string().describe('Root config machine name.'),
+    max_depth: z.number().default(3).describe('Transitive hop limit. Integer ≥1. Default 3.'),
+    direction: z.enum(['requires', 'required_by', 'both']).default('both')
+      .describe('requires=upstream deps, required_by=dependents, both=full graph.'),
   } as any,
   handler: async (args) => {
     try {
@@ -115,9 +119,9 @@ export const traceConfigDependenciesTool = (rootDir: string): ToolDefinition => 
 
 export const findConfigOwnerTool = (rootDir: string): ToolDefinition => ({
   name: 'find_config_owner',
-  description: 'Identify which module or profile provides a config object.',
+  description: 'Resolve config provider (module, profile, or recipe). Returns owner path hints. Use for default config origin.',
   inputSchema: {
-    config_name: z.string().describe('Full config name to trace ownership for.'),
+    config_name: z.string().describe('Config machine name to resolve.'),
   } as any,
   handler: async (args) => {
     try {
@@ -141,10 +145,11 @@ export const findConfigOwnerTool = (rootDir: string): ToolDefinition => ({
 
 export const detectConfigDriftTool = (rootDir: string): ToolDefinition => ({
   name: 'detect_config_drift',
-  description: 'Find mismatches between active storage and sync storage.',
+  description: 'List all active≠sync configs (drush cst). Returns name + operation per item. Use for site-wide drift audit.',
   inputSchema: {
     ...SharedArgsSchema.shape,
-    prefix: z.string().optional().describe('Optional prefix to filter.'),
+    prefix: z.string().optional()
+      .describe('Filter by config name prefix. Example: views.view., field.storage.'),
   } as any,
   handler: async (args) => {
     try {
@@ -168,9 +173,9 @@ export const detectConfigDriftTool = (rootDir: string): ToolDefinition => ({
 
 export const analyzeConfigImpactTool = (rootDir: string): ToolDefinition => ({
   name: 'analyze_config_impact',
-  description: 'Estimate deployment impact for a config object or diff set.',
+  description: 'Score deploy risk for one config change. Returns risk_level, touched_domains, followups. Use before cim.',
   inputSchema: {
-    config_name: z.string().describe('Config object to analyze impact for.'),
+    config_name: z.string().describe('Config machine name to assess.'),
   } as any,
   handler: async (args) => {
     try {
@@ -196,9 +201,10 @@ export const analyzeConfigImpactTool = (rootDir: string): ToolDefinition => ({
 
 export const inspectConfigSplitStateTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_config_split_state',
-  description: 'Summarize enabled Config Splits and their inclusion patterns.',
+  description: 'List Config Split definitions and enabled state. Returns split names, folders, graylist/blacklist. Use for multi-env deploy.',
   inputSchema: {
-    split_name: z.string().optional().describe('Filter by split name.'),
+    split_name: z.string().optional()
+      .describe('Split machine name. Omit to list all splits.'),
   } as any,
   handler: async (args) => {
     try {
@@ -222,9 +228,10 @@ export const inspectConfigSplitStateTool = (rootDir: string): ToolDefinition => 
 
 export const inspectRecipeStateTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_recipe_state',
-  description: 'Summarize Drupal Recipe states and managed configurations.',
+  description: 'Report applied Drupal Recipes (D10.3+). Returns recipe status and managed config lists.',
   inputSchema: {
-    recipe_name: z.string().optional().describe('Filter by recipe name.'),
+    recipe_name: z.string().optional()
+      .describe('Recipe machine name. Omit to list all applied recipes.'),
   } as any,
   handler: async (args) => {
     try {
@@ -248,7 +255,7 @@ export const inspectRecipeStateTool = (rootDir: string): ToolDefinition => ({
 
 export const summarizeDeploymentRiskTool = (rootDir: string): ToolDefinition => ({
   name: 'summarize_deployment_risk',
-  description: 'Produce a high-level narrative risk summary of the current config delta.',
+  description: 'Aggregate deploy risk across drift + splits. Returns narrative summary and blockers. Use before config deploy.',
   inputSchema: {} as any,
   handler: async (args) => {
     try {

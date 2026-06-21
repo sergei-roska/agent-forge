@@ -5,10 +5,11 @@ import type { DrupalClient } from '@agent-forge/drupal-api-client';
 
 export const detectConfigDriftTool = (client: DrupalClient, configDir: string): ToolDefinition => ({
   name: 'detect_config_drift',
-  description: 'Find mismatches between active storage and sync storage.',
+  description: 'List all active≠sync configs (drush cst). Returns name + operation per item. Use for site-wide drift audit.',
   inputSchema: {
     ...SharedArgsSchema.shape,
-    prefix: z.string().optional().describe('Optional prefix to filter config names.'),
+    prefix: z.string().optional()
+      .describe('Filter by config name prefix. Example: views.view., field.storage.'),
   } as any,
   handler: async (args) => {
     const adapter = new ConfigAnalysisAdapter(client, configDir);

@@ -9,12 +9,17 @@ const resolver = new CaptureResolver();
 export const captureTools: any[] = [
   {
     name: 'open_page_session',
-    description: 'Open a new browser session for a given URL.',
+    description:
+      'Open headless browser for URL. Returns session_id — required by all other tools. Reuse session_id to keep cookies and page state.',
     inputSchema: {
-      url: z.string().url().describe('URL to open.'),
-      wait_until: z.enum(['load', 'domcontentloaded', 'networkidle', 'commit']).optional().default('networkidle'),
-      width: z.number().optional().default(1280),
-      height: z.number().optional().default(720),
+      url: z.string().url().describe('Absolute HTTP(S) URL to navigate to.'),
+      wait_until: z
+        .enum(['load', 'domcontentloaded', 'networkidle', 'commit'])
+        .optional()
+        .default('networkidle')
+        .describe('Navigation wait: load | domcontentloaded | networkidle | commit. Default networkidle.'),
+      width: z.number().optional().default(1280).describe('Viewport width in px. Default 1280.'),
+      height: z.number().optional().default(720).describe('Viewport height in px. Default 720.'),
     },
     handler: async (args: any) => {
       const session = await browserManager.openSession(args.url, {
@@ -34,9 +39,10 @@ export const captureTools: any[] = [
   },
   {
     name: 'capture_full_page_screenshot',
-    description: 'Capture a full-page screenshot for a session.',
+    description:
+      'Screenshot full scrollable page. Returns PNG image_path in artifacts/. Use when content extends below the fold.',
     inputSchema: {
-      session_id: z.string().describe('Active session ID.'),
+      session_id: z.string().describe('session_id from open_page_session. UUID string.'),
     },
     handler: async (args: any) => {
       const session = await browserManager.getSession(args.session_id);
@@ -50,9 +56,10 @@ export const captureTools: any[] = [
   },
   {
     name: 'capture_viewport_screenshot',
-    description: 'Capture current viewport screenshot.',
+    description:
+      'Screenshot visible viewport at current scroll position. Returns PNG image_path. Use for above-the-fold or quick visual check.',
     inputSchema: {
-      session_id: z.string().describe('Active session ID.'),
+      session_id: z.string().describe('session_id from open_page_session. UUID string.'),
     },
     handler: async (args: any) => {
       const session = await browserManager.getSession(args.session_id);
@@ -66,14 +73,15 @@ export const captureTools: any[] = [
   },
   {
     name: 'capture_region_screenshot',
-    description: 'Capture a specific region or element screenshot.',
+    description:
+      'Screenshot one element or pixel rectangle. Returns PNG image_path and bounds. Prefer selector; use x/y/width/height when element has no selector.',
     inputSchema: {
-      session_id: z.string().describe('Active session ID.'),
-      selector: z.string().optional().describe('CSS selector to capture.'),
-      x: z.number().optional().describe('X coordinate.'),
-      y: z.number().optional().describe('Y coordinate.'),
-      width: z.number().optional().describe('Region width.'),
-      height: z.number().optional().describe('Region height.'),
+      session_id: z.string().describe('session_id from open_page_session. UUID string.'),
+      selector: z.string().optional().describe('CSS selector of element to capture. Takes precedence over coordinates.'),
+      x: z.number().optional().describe('Clip origin X in px. Requires y; ignored when selector matches.'),
+      y: z.number().optional().describe('Clip origin Y in px. Requires x; ignored when selector matches.'),
+      width: z.number().optional().describe('Clip width in px. Default 100 when using coordinates.'),
+      height: z.number().optional().describe('Clip height in px. Default 100 when using coordinates.'),
     },
     handler: async (args: any) => {
       const session = await browserManager.getSession(args.session_id);
@@ -87,12 +95,17 @@ export const captureTools: any[] = [
   },
   {
     name: 'inspect_dom_excerpt',
-    description: 'Retrieve bounded HTML/text content for a selector.',
+    description:
+      'Get truncated HTML for one CSS selector. Returns excerpt and truncated flag. Use for targeted markup; not full-page HTML.',
     inputSchema: {
-      session_id: z.string().describe('Active session ID.'),
-      selector: z.string().optional().default('body').describe('CSS selector.'),
-      max_chars: z.number().optional().default(2000).describe('Truncation limit.'),
-      include_outer_html: z.boolean().optional().default(false).describe('Include outer HTML.'),
+      session_id: z.string().describe('session_id from open_page_session. UUID string.'),
+      selector: z.string().optional().default('body').describe('CSS selector of element. Default body.'),
+      max_chars: z.number().optional().default(2000).describe('Max HTML character count before truncate. Default 2000.'),
+      include_outer_html: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe('true = outerHTML (element + children); false = innerHTML. Default false.'),
     },
     handler: async (args: any) => {
       const session = await browserManager.getSession(args.session_id);
@@ -106,10 +119,11 @@ export const captureTools: any[] = [
   },
   {
     name: 'inspect_layout',
-    description: 'Retrieve bounding boxes and styles for a list of selectors.',
+    description:
+      'Get bounding boxes and computed styles (display, visibility, opacity, z-index, overflow) per CSS selector. Use for overlap, spacing, or hidden-element debugging.',
     inputSchema: {
-      session_id: z.string().describe('Active session ID.'),
-      selectors: z.array(z.string()).describe('List of CSS selectors.'),
+      session_id: z.string().describe('session_id from open_page_session. UUID string.'),
+      selectors: z.array(z.string()).describe('CSS selectors to inspect. Each item returns bounds + styles or found:false.'),
     },
     handler: async (args: any) => {
       const session = await browserManager.getSession(args.session_id);
@@ -123,10 +137,11 @@ export const captureTools: any[] = [
   },
   {
     name: 'capture_page_snapshot',
-    description: 'Generate a structured DOM snapshot summary.',
+    description:
+      'Token-efficient DOM outline: tag, id, classes, text_preview per node. Use for page structure overview without raw HTML.',
     inputSchema: {
-      session_id: z.string().describe('Active session ID.'),
-      max_nodes: z.number().optional().default(100).describe('Max nodes to summary.'),
+      session_id: z.string().describe('session_id from open_page_session. UUID string.'),
+      max_nodes: z.number().optional().default(100).describe('Max DOM nodes to include. Default 100.'),
     },
     handler: async (args: any) => {
       const session = await browserManager.getSession(args.session_id);
@@ -140,9 +155,9 @@ export const captureTools: any[] = [
   },
   {
     name: 'close_page_session',
-    description: 'Close an active browser session.',
+    description: 'Close browser context and release session resources. Call after all capture/inspect steps are done.',
     inputSchema: {
-      session_id: z.string().describe('Session ID to close.'),
+      session_id: z.string().describe('session_id from open_page_session to close. UUID string.'),
     },
     handler: async (args: any) => {
       const success = await browserManager.closeSession(args.session_id);

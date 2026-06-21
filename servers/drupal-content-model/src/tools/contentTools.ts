@@ -1,13 +1,15 @@
 import { z } from 'zod';
-import { buildEnvelope, type ToolDefinition, SharedArgsSchema } from '@agent-forge/mcp-core';
+import { buildEnvelope, type ToolDefinition, PaginationArgsSchema, SharedArgsSchema } from '@agent-forge/mcp-core';
 import { ContentModelResolver } from '../runtime/contentModelResolver.js';
 
 export const inspectContentTypesTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_content_types',
-  description: 'Summarize node bundles and editorial settings.',
+  description: 'List node bundles (content types). Returns bundle, label, revisionable, workflow. Use to discover types or check moderation assignment.',
   inputSchema: {
     ...SharedArgsSchema.shape,
-    bundle: z.string().optional().describe('Optional node bundle to filter by.'),
+    limit: PaginationArgsSchema.shape.limit.describe('Max bundles to return. Integer 1–1000. Default 50.'),
+    offset: PaginationArgsSchema.shape.offset.describe('Skip N bundles for pagination.'),
+    bundle: z.string().optional().describe('Node bundle machine_name (e.g. article). Omit to list all.'),
   } as any,
   handler: async (args) => {
     const resolver = new ContentModelResolver(rootDir);
@@ -28,10 +30,12 @@ export const inspectContentTypesTool = (rootDir: string): ToolDefinition => ({
 
 export const inspectMediaTypesTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_media_types',
-  description: 'Summarize media bundles and source plugins.',
+  description: 'List media bundles. Returns bundle, label, source_plugin, translatable. Use for media type and source plugin mapping.',
   inputSchema: {
     ...SharedArgsSchema.shape,
-    bundle: z.string().optional().describe('Optional media bundle to filter by.'),
+    limit: PaginationArgsSchema.shape.limit.describe('Max bundles to return. Integer 1–1000. Default 50.'),
+    offset: PaginationArgsSchema.shape.offset.describe('Skip N bundles for pagination.'),
+    bundle: z.string().optional().describe('Media bundle machine_name (e.g. image). Omit to list all.'),
   } as any,
   handler: async (args) => {
     const resolver = new ContentModelResolver(rootDir);
@@ -52,10 +56,12 @@ export const inspectMediaTypesTool = (rootDir: string): ToolDefinition => ({
 
 export const inspectTaxonomyModelsTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_taxonomy_models',
-  description: 'Summarize vocabularies and term architecture.',
+  description: 'List taxonomy vocabularies. Returns vocabulary id, label. Use before term or reference analysis.',
   inputSchema: {
     ...SharedArgsSchema.shape,
-    vocabulary: z.string().optional().describe('Optional vocabulary to filter by.'),
+    limit: PaginationArgsSchema.shape.limit.describe('Max vocabularies to return. Integer 1–1000. Default 50.'),
+    offset: PaginationArgsSchema.shape.offset.describe('Skip N vocabularies for pagination.'),
+    vocabulary: z.string().optional().describe('Vocabulary machine_name (e.g. tags). Omit to list all.'),
   } as any,
   handler: async (args) => {
     const resolver = new ContentModelResolver(rootDir);
@@ -76,11 +82,14 @@ export const inspectTaxonomyModelsTool = (rootDir: string): ToolDefinition => ({
 
 export const inspectFieldUsageTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_field_usage',
-  description: 'Query field usage across bundles with pagination.',
+  description: 'List fields on an entity type. Returns name, type, label, bundle(s). Use to find field placement or enumerate bundle fields.',
   inputSchema: {
     ...SharedArgsSchema.shape,
-    entity_type_id: z.string().describe('Target entity type (e.g. node, media).'),
-    bundle: z.string().optional().describe('Filter by bundle.'),
+    limit: PaginationArgsSchema.shape.limit.describe('Max fields to return. Integer 1–1000. Default 50.'),
+    offset: PaginationArgsSchema.shape.offset.describe('Skip N fields for pagination.'),
+    query: z.string().optional().describe('Filter by field machine_name or label substring (case-insensitive).'),
+    entity_type_id: z.string().describe('Entity type machine_name. Required. Examples: node, media, taxonomy_term.'),
+    bundle: z.string().optional().describe('Bundle machine_name. Omit to aggregate fields across all bundles.'),
   } as any,
   handler: async (args) => {
     const resolver = new ContentModelResolver(rootDir);
@@ -102,10 +111,10 @@ export const inspectFieldUsageTool = (rootDir: string): ToolDefinition => ({
 
 export const inspectReferenceGraphTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_reference_graph',
-  description: 'Show entity reference edges between bundles (CLEANED).',
+  description: 'List outgoing entity references from bundles. Returns bundle, field, type, target_type, target_bundles. Use to map content relationships (node→media, node→taxonomy, etc.).',
   inputSchema: {
-    entity_type_id: z.string().describe('Source entity type ID.'),
-    bundle: z.string().optional().describe('Optional source bundle.'),
+    entity_type_id: z.string().describe('Source entity type machine_name. Required. Examples: node, media.'),
+    bundle: z.string().optional().describe('Source bundle machine_name (e.g. article). Omit to scan all bundles.'),
   } as any,
   handler: async (args) => {
     const resolver = new ContentModelResolver(rootDir);
@@ -120,10 +129,10 @@ export const inspectReferenceGraphTool = (rootDir: string): ToolDefinition => ({
 
 export const summarizeEditorialModelTool = (rootDir: string): ToolDefinition => ({
   name: 'summarize_editorial_model',
-  description: 'Produce a narrative summary of the content model (BOUNDED).',
+  description: 'Get high-level editorial snapshot. Returns bundle count, reference edges, moderation, top references. Call first for site architecture overview.',
   inputSchema: {
-    entity_type_id: z.string().describe('Domain (node, media, taxonomy).'),
-    bundle: z.string().optional().describe('Focus on a specific bundle.'),
+    entity_type_id: z.string().describe('Entity domain machine_name. Required. Examples: node, media.'),
+    bundle: z.string().optional().describe('Scope to one bundle machine_name. Omit for domain-wide summary.'),
   } as any,
   handler: async (args) => {
     const resolver = new ContentModelResolver(rootDir);
@@ -138,10 +147,10 @@ export const summarizeEditorialModelTool = (rootDir: string): ToolDefinition => 
 
 export const inspectDisplayModesTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_display_modes',
-  description: 'Summarize view mode and form mode usage.',
+  description: 'List enabled view and form modes for a bundle. Returns view_modes, form_modes arrays. Use for display or edit form configuration.',
   inputSchema: {
-    entity_type_id: z.string().describe('Entity type ID.'),
-    bundle: z.string().optional().describe('Filter by bundle.'),
+    entity_type_id: z.string().describe('Entity type machine_name. Required. Examples: node, media, block_content.'),
+    bundle: z.string().optional().describe('Bundle machine_name. Provide for bundle-specific modes (e.g. article).'),
   } as any,
   handler: async (args) => {
     const resolver = new ContentModelResolver(rootDir);
@@ -156,10 +165,10 @@ export const inspectDisplayModesTool = (rootDir: string): ToolDefinition => ({
 
 export const inspectRevisioningTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_revisioning',
-  description: 'Explain revisioning defaults and UI implications.',
+  description: 'Check entity type revision settings. Returns revisionable, revision_ui. Use for draft/revision behavior questions.',
   inputSchema: {
-    entity_type_id: z.string().describe('Entity type ID.'),
-    bundle: z.string().optional().describe('Filter by bundle.'),
+    entity_type_id: z.string().describe('Entity type machine_name. Required. Examples: node, block_content.'),
+    bundle: z.string().optional().describe('Ignored — revision applies at entity type level.'),
   } as any,
   handler: async (args) => {
     const resolver = new ContentModelResolver(rootDir);
@@ -174,10 +183,10 @@ export const inspectRevisioningTool = (rootDir: string): ToolDefinition => ({
 
 export const inspectTranslationTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_translation',
-  description: 'Summarize translatability at entity and bundle levels.',
+  description: 'Check content translation status. Returns translatable boolean. Use when multilingual setup matters.',
   inputSchema: {
-    entity_type_id: z.string().describe('Entity type ID.'),
-    bundle: z.string().optional().describe('Filter by bundle.'),
+    entity_type_id: z.string().describe('Entity type machine_name. Required. Examples: node, media, taxonomy_term.'),
+    bundle: z.string().optional().describe('Bundle machine_name. Omit to check entity-type default.'),
   } as any,
   handler: async (args) => {
     const resolver = new ContentModelResolver(rootDir);
@@ -192,10 +201,10 @@ export const inspectTranslationTool = (rootDir: string): ToolDefinition => ({
 
 export const inspectModerationTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_moderation',
-  description: 'Map bundles to content moderation workflows.',
+  description: 'Get content moderation workflow for a bundle. Returns moderated, workflow id, states. Use to find publishing workflow and states.',
   inputSchema: {
-    entity_type_id: z.string().describe('Entity type ID.'),
-    bundle: z.string().optional().describe('Filter by bundle.'),
+    entity_type_id: z.string().describe('Entity type machine_name. Required. Usually node.'),
+    bundle: z.string().optional().describe('Bundle machine_name. Required to resolve workflow (e.g. article).'),
   } as any,
   handler: async (args) => {
     const resolver = new ContentModelResolver(rootDir);

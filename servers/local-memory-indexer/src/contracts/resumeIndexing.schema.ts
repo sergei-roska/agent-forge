@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
 export const resumeIndexingInputShape = {
-  run_id: z.string().describe('The run_id of a paused indexing run.'),
+  run_id: z.string().describe('Paused run_id from pause_indexing.'),
   project_path: z
     .string()
     .optional()
-    .describe('Project path if run_id is not in the active session (recommended after restart).'),
+    .describe('Absolute project root; required after server restart if run not in memory.'),
 } as const;
 
 export const ResumeIndexingInputSchema = z.object(resumeIndexingInputShape);
@@ -23,7 +23,7 @@ export const RESUME_INDEXING_JSON_SCHEMA = {
   type: 'object',
   required: ['run_id'],
   properties: {
-    run_id:       { type: 'string', description: 'The run_id of a paused indexing run.' },
-    project_path: { type: 'string', description: 'Project path when resuming after process restart.' },
+    run_id:       { type: 'string', description: 'Paused run_id from pause_indexing.' },
+    project_path: { type: 'string', description: 'Absolute project root; required after server restart if run not in memory.' },
   },
 } as const;

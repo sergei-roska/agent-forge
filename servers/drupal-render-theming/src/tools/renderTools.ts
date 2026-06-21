@@ -7,7 +7,7 @@ const getRootDir = (args: any) => args.project_root || process.cwd();
 export const renderTools: any[] = [
   {
     name: 'inspect_theme_state',
-    description: 'Summarize active theme, base theme chain, and region metadata.',
+    description: 'Get active theme, admin theme, base theme chain, regions. Use first for theme or layout context.',
     inputSchema: {},
     handler: async (args: any) => {
       const resolver = new RenderResolver(getRootDir(args));
@@ -20,9 +20,9 @@ export const renderTools: any[] = [
   },
   {
     name: 'inspect_template_suggestions',
-    description: 'Return ordered template suggestions for a specific theme hook.',
+    description: 'List theme_suggestions for a hook in priority order (last wins). Use to see candidate templates before resolution.',
     inputSchema: {
-      theme_hook: z.string().describe('The base theme hook (e.g. node, block, container).'),
+      theme_hook: z.string().describe('Theme hook machine name. Examples: node, block, container, field.'),
     },
     handler: async (args: any) => {
       const resolver = new RenderResolver(getRootDir(args));
@@ -35,9 +35,9 @@ export const renderTools: any[] = [
   },
   {
     name: 'trace_template_resolution',
-    description: 'Explain which template file is resolving for a hook and why.',
+    description: 'Get resolved template name, path, and registry entry for a theme hook. Use when wrong or missing template file.',
     inputSchema: {
-      theme_hook: z.string().describe('The base theme hook.'),
+      theme_hook: z.string().describe('Theme hook from #theme or registry. Examples: node, block, views_view.'),
     },
     handler: async (args: any) => {
       const resolver = new RenderResolver(getRootDir(args));
@@ -50,9 +50,9 @@ export const renderTools: any[] = [
   },
   {
     name: 'find_preprocess_chain',
-    description: 'List all preprocess functions and registry info for a render target.',
+    description: 'List preprocess functions and template registry for a theme hook. Use to debug template variables or alter order.',
     inputSchema: {
-      theme_hook: z.string().describe('The base theme hook.'),
+      theme_hook: z.string().describe('Theme hook machine name. Same target as trace_template_resolution.'),
     },
     handler: async (args: any) => {
       const resolver = new RenderResolver(getRootDir(args));
@@ -65,12 +65,12 @@ export const renderTools: any[] = [
   },
   {
     name: 'inspect_render_array',
-    description: 'Bounded inspection of a render array structure (Entities, Blocks).',
+    description: 'Build and preview node/block render array (#theme, keys, nested structure). Use to debug missing or extra elements.',
     inputSchema: {
-      target_type: z.enum(['node', 'block']).describe('Type of render target.'),
-      target_id: z.string().describe('Machine name or Entity ID.'),
-      view_mode: z.string().optional().describe('Drupal view mode (default: full).'),
-      max_depth: z.number().optional().describe('Maximum recursion depth for noise reduction (default 3).'),
+      target_type: z.enum(['node', 'block']).describe('Entity type: node or block.'),
+      target_id: z.string().describe('Node nid as string, or block config id (e.g. claro_help).'),
+      view_mode: z.string().optional().describe('View mode machine_name. Node only. Default: full.'),
+      max_depth: z.number().optional().describe('Max nested array depth. Integer. Default 3.'),
     },
     handler: async (args: any) => {
        const resolver = new RenderResolver(getRootDir(args));
@@ -83,10 +83,10 @@ export const renderTools: any[] = [
   },
   {
     name: 'inspect_library_attachments',
-    description: 'Identify attached CSS/JS libraries for a specific render target.',
+    description: 'List #attached libraries and drupalSettings keys for node/block render. Use for CSS/JS loading issues.',
     inputSchema: {
-      target_type: z.enum(['node', 'block']).describe('Type of render target.'),
-      target_id: z.string().describe('Machine name or ID.'),
+      target_type: z.enum(['node', 'block']).describe('Entity type: node or block.'),
+      target_id: z.string().describe('Node nid as string, or block config id.'),
     },
     handler: async (args: any) => {
        const resolver = new RenderResolver(getRootDir(args));
@@ -99,9 +99,9 @@ export const renderTools: any[] = [
   },
   {
     name: 'inspect_blocks_and_regions',
-    description: 'Summarize block placement and regions for the active theme.',
+    description: 'List blocks in active theme: id, region, weight, plugin, status. Use for layout and block placement.',
     inputSchema: {
-      region: z.string().optional().describe('Filter by specific region.'),
+      region: z.string().optional().describe('Region machine_name filter. Omit to return all regions.'),
     },
     handler: async (args: any) => {
        const resolver = new RenderResolver(getRootDir(args));
@@ -114,9 +114,9 @@ export const renderTools: any[] = [
   },
   {
     name: 'inspect_sdc_components',
-    description: 'Summarize Single Directory Components (SDC) metadata and paths.',
+    description: 'List or fetch Single Directory Component definitions (id, provider, path, schema). Requires SDC module enabled.',
     inputSchema: {
-       component_id: z.string().optional().describe('Specific component ID (e.g. core:button).')
+       component_id: z.string().optional().describe('Component id namespace:name (e.g. core:button). Omit to list all.'),
     },
     handler: async (args: any) => {
        const resolver = new RenderResolver(getRootDir(args));
@@ -129,10 +129,10 @@ export const renderTools: any[] = [
   },
   {
     name: 'summarize_render_path',
-    description: 'Compact end-to-end explanation from data to template for a target.',
+    description: 'End-to-end render pipeline for node/block: theme_hook, template, preprocess count, library count. Use for overview without full array.',
     inputSchema: {
-       target_type: z.enum(['node', 'block']).describe('Target type.'),
-       target_id: z.string().describe('Target ID.')
+       target_type: z.enum(['node', 'block']).describe('Entity type: node or block.'),
+       target_id: z.string().describe('Node nid as string, or block config id.'),
     },
     handler: async (args: any) => {
       const resolver = new RenderResolver(getRootDir(args));
