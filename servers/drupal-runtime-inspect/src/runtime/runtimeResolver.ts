@@ -81,7 +81,7 @@ export class RuntimeResolver {
           'label' => (string)$f->getLabel(),
           'required' => $f->isRequired(),
           'translatable' => $f->isTranslatable(),
-          'provider' => $f->getProvider(),
+          'provider' => method_exists($f, 'getProvider') ? $f->getProvider() : null,
         ];
       }
       return ['items' => array_values($results), 'total' => count($results)];

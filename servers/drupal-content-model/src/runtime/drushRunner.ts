@@ -1,7 +1,8 @@
 import { exec, execFile, execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { resolve, relative } from 'node:path';
+import { existsSync, writeFileSync, unlinkSync } from 'node:fs';
+import { resolve, relative, join } from 'node:path';
 import { promisify } from 'node:util';
+import { randomUUID } from 'node:crypto';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -40,33 +41,45 @@ export class DrushRunner {
 
   /**
    * Evaluate dynamic PHP and return parsed JSON result.
+   * Uses a temporary file via 'php-script' to avoid shell escaping issues.
    */
   async evaluate(phpCode: string): Promise<any> {
     const env = await this.detectEnvironment();
     
-    // Base64 encode the payload to avoid shell escaping issues.
-    // We expect phpCode to contain a 'return' statement if a result is needed.
     const base64Payload = Buffer.from(phpCode).toString('base64');
-
-    const wrapper = `
-      $bootstrap_ok = class_exists('\\\\Drupal') && \\\\Drupal::hasContainer();
-      if (!$bootstrap_ok) {
+    
+    // The PHP script uses markers to safely extract JSON from Drush's potentially noisy stdout
+    const scriptContent = `<?php
+      $is_bootstrapped = class_exists('Drupal') && \\Drupal::hasContainer();
+      if (!$is_bootstrapped) {
+        echo "\\n---MCP-BEGIN---\\n";
         echo json_encode(['error' => 'DRUPAL_NOT_BOOTSTRAPPED', 'message' => 'Drupal container not initialized.']);
+        echo "\\n---MCP-END---\\n";
         exit;
       }
       try {
         $result = eval(base64_decode('${base64Payload}'));
+        echo "\\n---MCP-BEGIN---\\n";
         echo json_encode($result, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+        echo "\\n---MCP-END---\\n";
       } catch (\\Throwable $e) {
+        echo "\\n---MCP-BEGIN---\\n";
         echo json_encode(['error' => 'PHP_EXECUTION_ERROR', 'message' => $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine()]);
+        echo "\\n---MCP-END---\\n";
       }
     `;
 
+    const scriptName = `.mcp-query-${randomUUID()}.php`;
+    const scriptPath = join(this.drupalDocroot, scriptName);
+    
     try {
+      // Write the script to the docroot so it's accessible within the container
+      writeFileSync(scriptPath, scriptContent, 'utf-8');
+
       let stdout = '';
       let stderr = '';
       
-      const drushArgs = ['php-eval', wrapper];
+      const drushArgs = ['php-script', scriptName];
       
       // Use relative path for --root so it works inside containers (e.g., Lando/DDEV)
       if (this.drupalDocroot !== this.rootDir) {
@@ -90,12 +103,14 @@ export class DrushRunner {
         ({ stdout, stderr } = await execFileAsync(drushCmd, drushArgs, { cwd: this.rootDir, maxBuffer: 10 * 1024 * 1024 }));
       }
 
-      const trimmed = stdout.trim();
-      if (!trimmed) {
-        throw new Error(`Empty response from Drush. Stderr: ${stderr}`);
+      const match = stdout.match(/---MCP-BEGIN---\s*([\s\S]*?)\s*---MCP-END---/);
+      
+      if (!match || !match[1]) {
+        throw new Error(`Could not extract JSON from Drush response. Output: ${stdout.trim()} | Stderr: ${stderr.trim()}`);
       }
 
-      const result = JSON.parse(trimmed);
+      const result = JSON.parse(match[1].trim());
+
       if (result && typeof result === 'object') {
         if (result.error === 'DRUPAL_NOT_BOOTSTRAPPED') {
           throw new Error(`Drupal Bootstrap Error: ${result.message}`);
@@ -108,6 +123,13 @@ export class DrushRunner {
     } catch (error: any) {
       const msg = error.stderr?.toString() || error.message || '';
       throw new Error(`Drush execution failed: ${msg}`);
+    } finally {
+      // Always clean up the temporary script
+      if (existsSync(scriptPath)) {
+        try {
+          unlinkSync(scriptPath);
+        } catch { /* ignore cleanup errors */ }
+      }
     }
   }
 
