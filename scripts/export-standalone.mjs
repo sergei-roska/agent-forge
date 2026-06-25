@@ -30,7 +30,13 @@ async function listServerDirs() {
 function pickExternalDeps(serverId, deps) {
   const external = [];
   if (deps['@modelcontextprotocol/sdk']) external.push('@modelcontextprotocol/sdk');
-  if (deps['@lancedb/lancedb']) external.push('@lancedb/lancedb');
+  if (deps['@lancedb/lancedb']) {
+    external.push('@lancedb/lancedb');
+    if (deps['apache-arrow']) external.push('apache-arrow');
+  }
+  if (deps['@huggingface/transformers']) external.push('@huggingface/transformers');
+  if (deps['better-sqlite3']) external.push('better-sqlite3');
+  if (deps['typescript']) external.push('typescript');
   if (serverId === 'web-observe-capture') {
     external.push('playwright');
     external.push('playwright-core');
@@ -50,9 +56,8 @@ function makeStandalonePackageJson(srcPkg, externalDeps, extraDependencies = {},
   }
 
   return {
-    name: `${srcPkg.name}-standalone`,
+    name: srcPkg.name,
     version: srcPkg.version ?? '0.1.0',
-    private: true,
     type: options.type ?? 'module',
     main: `dist/${options.entryFile ?? 'index.js'}`,
     scripts: {
@@ -60,6 +65,9 @@ function makeStandalonePackageJson(srcPkg, externalDeps, extraDependencies = {},
       start: `node dist/${options.entryFile ?? 'index.js'}`,
     },
     engines: { node: '>=20.0.0' },
+    publishConfig: {
+      access: 'public',
+    },
     dependencies,
   };
 }
@@ -73,7 +81,6 @@ async function exportServer(serverDir) {
   const srcPkg = JSON.parse(await readFile(pkgPath, 'utf8'));
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const serverId = manifest.id;
-  const usesSourceAliasForMcpCore = serverId === 'local-memory-search';
   const entryFile = 'index.js';
 
   const outDir = join(OUT_ROOT, serverId);
@@ -93,12 +100,14 @@ async function exportServer(serverDir) {
     `--outfile=${join(outDist, entryFile)}`,
   ];
 
-  if (usesSourceAliasForMcpCore) {
-    esbuildArgs.push(`--alias:@agent-forge/mcp-core=${resolve(ROOT, 'packages', 'mcp-core', 'src', 'index.ts')}`);
-  }
+  esbuildArgs.push(`--alias:@agent-forge/mcp-core=${resolve(ROOT, 'packages', 'mcp-core', 'src', 'index.ts')}`);
+  esbuildArgs.push(`--alias:@agent-forge/drupal-api-client=${resolve(ROOT, 'packages', 'drupal-api-client', 'src', 'index.ts')}`);
+  esbuildArgs.push(`--alias:@agent-forge/filesystem-index=${resolve(ROOT, 'packages', 'filesystem-index', 'src', 'index.ts')}`);
+  esbuildArgs.push(`--alias:@agent-forge/browser-observer=${resolve(ROOT, 'packages', 'browser-observer', 'src', 'index.ts')}`);
 
   for (const dep of externalDeps) {
     esbuildArgs.push(`--external:${dep}`);
+    esbuildArgs.push(`--external:${dep}/*`);
   }
 
   runOrThrow(esbuildBin, esbuildArgs);
@@ -107,6 +116,12 @@ async function exportServer(serverDir) {
     await cp(readmePath, join(outDir, 'README.md'));
   }
   await cp(manifestPath, join(outDir, 'server.manifest.json'));
+
+  try {
+    await cp(resolve(ROOT, 'LICENSE'), join(outDir, 'LICENSE'));
+  } catch (err) {
+    // Ignore if root LICENSE is missing
+  }
 
   const extraDependencies = {};
   if (serverId === 'web-observe-capture' && !deps.playwright) {

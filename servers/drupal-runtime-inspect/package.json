@@ -1,5 +1,5 @@
 {
-  "name": "@agent-forge/server-drupal-runtime-inspect",
+  "name": "@drupal-forge/server-runtime-inspect",
   "version": "0.1.0",
   "type": "module",
   "scripts": {

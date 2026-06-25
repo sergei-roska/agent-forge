@@ -1,5 +1,5 @@
 {
-  "name": "@agent-forge/server-local-memory-indexer",
+  "name": "@local-memory/indexer",
   "version": "0.1.0",
   "private": true,
   "description": "Write-only producer MCP server: discovers, chunks, and embeds project files into LanceDB (Spec 08.1)",
@@ -33,6 +33,7 @@
     "tree-sitter-python": "^0.25.0",
     "tree-sitter-rust": "^0.24.0",
     "tree-sitter-typescript": "^0.23.2",
+    "typescript": "latest",
     "uuid": "^14.0.0",
     "zod": "latest"
   },
@@ -40,7 +41,6 @@
     "@types/better-sqlite3": "latest",
     "@types/node": "latest",
     "@types/uuid": "latest",
-    "typescript": "latest",
     "vitest": "4.1.8"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@agent-forge/server-local-memory-search",
+  "name": "@local-memory/search",
   "version": "1.0.0",
   "private": true,
   "description": "Read-only consumer MCP server: hybrid semantic + keyword search, context packs, and health diagnostics over the shared LanceDB index (Spec 08.2)",

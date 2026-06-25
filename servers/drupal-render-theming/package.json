@@ -1,5 +1,5 @@
 {
-  "name": "@agent-forge/server-drupal-render-theming",
+  "name": "@drupal-forge/server-render-theming",
   "version": "0.1.0",
   "description": "Drupal Render & Theming MCP Server for Forge",
   "private": true,

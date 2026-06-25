@@ -1,5 +1,5 @@
 {
-  "name": "@agent-forge/server-drupal-operations-debug",
+  "name": "@drupal-forge/server-operations-debug",
   "version": "0.1.0",
   "private": true,
   "description": "MCP server for Drupal runtime diagnosis and health audit (Spec 05)",

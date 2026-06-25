@@ -1,5 +1,5 @@
 {
-  "name": "@agent-forge/server-web-observe-capture",
+  "name": "@drupal-forge/server-web-observe-capture",
   "version": "0.1.0",
   "description": "Browser-based observation and capture server for Forge",
   "private": true,
