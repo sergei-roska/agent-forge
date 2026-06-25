@@ -19,7 +19,7 @@
     "@huggingface/transformers": "^4.2.0",
     "@lancedb/lancedb": "^0.30.0",
     "@modelcontextprotocol/sdk": "latest",
-    "apache-arrow": "^21.1.0",
+    "apache-arrow": "^18.1.0",
     "better-sqlite3": "^12.10.0",
     "ignore": "^7.0.5",
     "mammoth": "^1.12.0",

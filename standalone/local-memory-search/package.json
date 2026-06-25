@@ -1,0 +1,23 @@
+{
+  "name": "@local-memory/search",
+  "version": "1.0.1",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "node -e \"console.log('Standalone bundle is prebuilt')\"",
+    "start": "node dist/index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest",
+    "@lancedb/lancedb": "^0.30.0",
+    "apache-arrow": "^18.1.0",
+    "@huggingface/transformers": "^4.2.0",
+    "better-sqlite3": "^12.10.0"
+  }
+}
