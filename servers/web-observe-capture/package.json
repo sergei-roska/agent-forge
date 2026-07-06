@@ -1,6 +1,6 @@
 {
   "name": "@drupal-forge/server-web-observe-capture",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Browser-based observation and capture server for Forge",
   "private": true,
   "type": "module",
