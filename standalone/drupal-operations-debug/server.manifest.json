@@ -1,0 +1,10 @@
+{
+  "id": "drupal-operations-debug",
+  "name": "Drupal Operations & Debug",
+  "description": "Drupal runtime ops: watchdog logs, queues, cron, cache, updates, health.",
+  "version": "0.1.0",
+  "capabilities": {
+    "tools": true
+  },
+  "domain": "operations"
+}

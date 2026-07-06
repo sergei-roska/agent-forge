@@ -1,0 +1,12 @@
+{
+  "id": "drupal-render-theming",
+  "name": "Drupal Render & Theming",
+  "version": "0.1.0",
+  "description": "Live Drupal theming: theme state, template resolution, preprocess chains, render arrays, libraries, blocks, SDC.",
+  "domain": "theming",
+  "source_of_truth": "codebase",
+  "capabilities": {
+    "tools": true
+  }
+}
+

@@ -1,5 +1,5 @@
 {
-  "name": "@local-memory/indexer",
+  "name": "@drupal-forge/server-runtime-inspect",
   "version": "0.1.0",
   "type": "module",
   "main": "dist/index.js",
@@ -14,11 +14,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "latest",
-    "@lancedb/lancedb": "^0.30.0",
-    "apache-arrow": "^18.1.0",
-    "@huggingface/transformers": "^4.2.0",
-    "better-sqlite3": "^12.10.0",
-    "typescript": "latest"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@huggingface/transformers": "^4.2.0"
   }
 }

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "drupal-runtime-inspect": {
+      "command": "node",
+      "args": [
+        "/home/sr/Projects/Workspace/agent-forge/standalone/drupal-runtime-inspect/dist/index.js"
+      ]
+    }
+  }
+}

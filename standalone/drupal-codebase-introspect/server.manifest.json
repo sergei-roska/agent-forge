@@ -1,0 +1,10 @@
+{
+  "id": "drupal-codebase-introspect",
+  "name": "Drupal Codebase Introspect",
+  "description": "Static analysis: map hooks, services, plugins, routes, forms to source files.",
+  "version": "0.1.0",
+  "capabilities": {
+    "tools": true
+  },
+  "domain": "codebase"
+}

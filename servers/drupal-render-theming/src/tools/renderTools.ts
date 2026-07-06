@@ -1,8 +1,27 @@
 import { z } from 'zod';
+import { resolve, dirname } from 'node:path';
+import { existsSync } from 'node:fs';
 import { buildEnvelope } from '@agent-forge/mcp-core';
 import { RenderResolver } from '../render/renderResolver.js';
 
-const getRootDir = (args: any) => args.project_root || process.cwd();
+function findDrupalProjectRoot(startPath: string): string {
+  let curr = resolve(startPath);
+  while (curr !== dirname(curr)) {
+    if (existsSync(resolve(curr, 'web', 'core'))) return curr;
+    if (existsSync(resolve(curr, 'docroot', 'core'))) return curr;
+    if (existsSync(resolve(curr, 'core')) && existsSync(resolve(curr, 'index.php'))) return curr;
+    curr = dirname(curr);
+  }
+  return startPath;
+}
+
+const getRootDir = (args: any) => {
+  const argRoot = args?.project_root;
+  const envRoot = process.env.DRUPAL_ROOT_DIR || process.env.DRUPAL_ROOT;
+  if (argRoot) return resolve(argRoot);
+  if (envRoot) return resolve(envRoot);
+  return findDrupalProjectRoot(process.cwd());
+};
 
 export const renderTools: any[] = [
   {
@@ -12,8 +31,14 @@ export const renderTools: any[] = [
     handler: async (args: any) => {
       const resolver = new RenderResolver(getRootDir(args));
       const data = await resolver.getThemeState();
+      if (data && 'error' in data) {
+        return buildEnvelope({
+          summary: `Error: ${data.error}`,
+          data: [data],
+        });
+      }
       return buildEnvelope({
-        summary: `Active theme: ${data.active_theme} (Base: ${data.base_theme_chain.join(' > ') || 'None'})`,
+        summary: `Active theme: ${data.active_theme} (Base: ${data.base_theme_chain?.join(' > ') || 'None'})`,
         data: [data],
       });
     }
@@ -27,8 +52,14 @@ export const renderTools: any[] = [
     handler: async (args: any) => {
       const resolver = new RenderResolver(getRootDir(args));
       const data = await resolver.getTemplateSuggestions(args);
+      if (data && 'error' in data) {
+        return buildEnvelope({
+          summary: `Error: ${data.error}`,
+          data: [data],
+        });
+      }
       return buildEnvelope({
-        summary: `Found ${data.suggestions.length} suggestions for ${args.theme_hook}.`,
+        summary: `Found ${data.suggestions?.length || 0} suggestions for ${args.theme_hook}.`,
         data: [data],
       });
     }
@@ -42,6 +73,12 @@ export const renderTools: any[] = [
     handler: async (args: any) => {
       const resolver = new RenderResolver(getRootDir(args));
       const data = await resolver.getPreprocessChain(args.theme_hook);
+      if (data && 'error' in data) {
+        return buildEnvelope({
+          summary: `Error: ${data.error}`,
+          data: [data],
+        });
+      }
       return buildEnvelope({
         summary: `Resolved ${args.theme_hook} to ${data.template_name || 'unknown'}.`,
         data: [data],
@@ -57,6 +94,12 @@ export const renderTools: any[] = [
     handler: async (args: any) => {
       const resolver = new RenderResolver(getRootDir(args));
       const data = await resolver.getPreprocessChain(args.theme_hook);
+      if (data && 'error' in data) {
+        return buildEnvelope({
+          summary: `Error: ${data.error}`,
+          data: [data],
+        });
+      }
       return buildEnvelope({
         summary: `Preprocess chain for ${args.theme_hook} contains ${data.preprocess_functions?.length || 0} functions.`,
         data: [data],
@@ -75,6 +118,12 @@ export const renderTools: any[] = [
     handler: async (args: any) => {
        const resolver = new RenderResolver(getRootDir(args));
        const data = await resolver.getRenderArray(args.target_type, args.target_id, args);
+       if (data && 'error' in data) {
+         return buildEnvelope({
+           summary: `Error: ${data.error}`,
+           data: [data],
+         });
+       }
        return buildEnvelope({
          summary: `Projected render array for ${args.target_type}:${args.target_id}.`,
          data: [data],
@@ -91,8 +140,14 @@ export const renderTools: any[] = [
     handler: async (args: any) => {
        const resolver = new RenderResolver(getRootDir(args));
        const data = await resolver.getLibraryAttachments(args.target_type, args.target_id);
+       if (data && 'error' in data) {
+         return buildEnvelope({
+           summary: `Error: ${data.error}`,
+           data: [data],
+         });
+       }
        return buildEnvelope({
-         summary: `Target ${args.target_id} has ${data.libraries.length} attached libraries.`,
+         summary: `Target ${args.target_id} has ${data.libraries?.length || 0} attached libraries.`,
          data: [data],
        });
     }
@@ -104,12 +159,18 @@ export const renderTools: any[] = [
       region: z.string().optional().describe('Region machine_name filter. Omit to return all regions.'),
     },
     handler: async (args: any) => {
-       const resolver = new RenderResolver(getRootDir(args));
-       const data = await resolver.getBlocksAndRegions(args.region);
-       return buildEnvelope({
-         summary: `Found ${data.length} blocks placed in theme regions.`,
-         data: Array.isArray(data) ? data : [data],
-       });
+        const resolver = new RenderResolver(getRootDir(args));
+        const data = await resolver.getBlocksAndRegions(args.region);
+        if (data && 'error' in data) {
+          return buildEnvelope({
+            summary: `Error: ${data.error}`,
+            data: [data],
+          });
+        }
+        return buildEnvelope({
+          summary: `Found ${data.length} blocks placed in theme regions.`,
+          data: Array.isArray(data) ? data : [data],
+        });
     }
   },
   {
@@ -119,12 +180,18 @@ export const renderTools: any[] = [
        component_id: z.string().optional().describe('Component id namespace:name (e.g. core:button). Omit to list all.'),
     },
     handler: async (args: any) => {
-       const resolver = new RenderResolver(getRootDir(args));
-       const data = await resolver.getSdcComponents(args.component_id);
-       return buildEnvelope({
-         summary: args.component_id ? `SDC Component: ${args.component_id}` : `Found ${data.length} SDC components.`,
-         data: Array.isArray(data) ? data : [data],
-       });
+        const resolver = new RenderResolver(getRootDir(args));
+        const data = await resolver.getSdcComponents(args.component_id);
+        if (data && 'error' in data) {
+          return buildEnvelope({
+            summary: `Error: ${data.error}`,
+            data: [data],
+          });
+        }
+        return buildEnvelope({
+          summary: args.component_id ? `SDC Component: ${args.component_id}` : `Found ${data.length} SDC components.`,
+          data: Array.isArray(data) ? data : [data],
+        });
     }
   },
   {
@@ -137,9 +204,17 @@ export const renderTools: any[] = [
     handler: async (args: any) => {
       const resolver = new RenderResolver(getRootDir(args));
       const [render, libs] = await Promise.all([
-        resolver.getRenderArray(args.target_type, args.target_id),
+        resolver.getRenderArray(args.target_type, args.target_id, args),
         resolver.getLibraryAttachments(args.target_type, args.target_id)
       ]);
+      
+      if (render.error || libs.error) {
+        return buildEnvelope({
+          summary: `Error: ${render.error || libs.error}`,
+          data: [render.error ? render : libs],
+        });
+      }
+
       const themeHook = render.summary.theme_hook;
       const preprocess = await resolver.getPreprocessChain(themeHook);
       
@@ -149,11 +224,11 @@ export const renderTools: any[] = [
         template: preprocess.template_name,
         template_path: preprocess.template_path,
         preprocess_count: preprocess.preprocess_functions?.length || 0,
-        library_count: libs.libraries.length,
+        library_count: libs.libraries?.length || 0,
       };
 
       return buildEnvelope({
-        summary: `Render Path: ${themeHook} -> ${preprocess.template_name} (${libs.libraries.length} libs)`,
+        summary: `Render Path: ${themeHook} -> ${preprocess.template_name} (${libs.libraries?.length || 0} libs)`,
         data: [summary],
       });
     }

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "web-observe-capture": {
+      "command": "node",
+      "args": [
+        "/home/sr/Projects/Workspace/agent-forge/standalone/web-observe-capture/dist/index.js"
+      ]
+    }
+  }
+}

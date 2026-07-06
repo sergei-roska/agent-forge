@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "local-memory-search": {
+      "command": "node",
+      "args": [
+        "/home/sr/Projects/Workspace/agent-forge/standalone/local-memory-search/dist/index.js"
+      ]
+    }
+  }
+}

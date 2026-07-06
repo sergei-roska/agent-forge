@@ -1,0 +1,20 @@
+{
+  "id": "local-memory-search",
+  "name": "Local Memory Search",
+  "description": "Read-only search over shared LanceDB index: hybrid/semantic/keyword retrieval, context packs, call/import graph, diagnostics. Falls back to keyword/SQLite when vectors or embeddings unavailable.",
+  "version": "1.0.0",
+  "capabilities": {
+    "tools": true
+  },
+  "domain": "local_memory",
+  "source_of_truth": "local_index",
+  "contract_frozen": "1.0",
+  "prohibitions": [
+    "Must never write to LanceDB (no add, update, delete, create_index).",
+    "Must never write to the SQLite state database (read-only, PRAGMA query_only).",
+    "Must never write to the filesystem; source files are read-only for neighbor line expansion.",
+    "Must never build or query a cross-project global index.",
+    "Must never return a 500-equivalent internal error to the agent; always degrade to a usable result set.",
+    "Tool names, required parameters, and the output envelope shape are frozen from v1.0 and must not change without a version bump."
+  ]
+}

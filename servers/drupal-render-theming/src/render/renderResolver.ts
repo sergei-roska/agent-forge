@@ -41,19 +41,59 @@ export class RenderResolver {
   }) {
     const php = `
       $theme_hook = '${args.theme_hook}';
-      $suggestions = \\Drupal::moduleHandler()->invokeAll('theme_suggestions_' . $theme_hook, [[]]);
-      \\Drupal::moduleHandler()->alter('theme_suggestions_' . $theme_hook, $suggestions, []);
       
-      // Attempt to find the chosen one if possible via theme manager
-      $runtime_suggestions = [];
+      $variables = [];
+      if ($theme_hook === 'node') {
+        $variables = ['elements' => []];
+        $variables['elements']['#view_mode'] = '${args.view_mode || 'full'}';
+        
+        $nids = \\Drupal::entityTypeManager()->getStorage('node')->getQuery()->accessCheck(FALSE)->range(0, 1)->execute();
+        $node = null;
+        if (!empty($nids)) {
+          $node = \\Drupal\\node\\Entity\\Node::load(reset($nids));
+        }
+        if (!\$node) {
+          $node = \\Drupal\\node\\Entity\\Node::create(['type' => 'page']);
+        }
+        $variables['elements']['#node'] = $node;
+      } elseif ($theme_hook === 'block') {
+        $variables = ['elements' => []];
+        $theme = \\Drupal::config('system.theme')->get('default');
+        $blocks = \\Drupal::entityTypeManager()->getStorage('block')->loadByProperties(['theme' => $theme]);
+        if (!empty($blocks)) {
+          $block = reset($blocks);
+          $variables['elements']['#id'] = $block->id();
+          $variables['elements']['#block'] = $block;
+          $variables['elements']['#configuration'] = $block->getPlugin()->getConfiguration();
+          $variables['elements']['#plugin_id'] = $block->getPluginId();
+          $variables['elements']['#derivative_plugin_id'] = $block->getPlugin()->getDerivativeId();
+          $variables['elements']['#base_plugin_id'] = $block->getPlugin()->getBaseId();
+        }
+        $variables['elements']['content'] = [];
+      } elseif ($theme_hook === 'field') {
+        $variables = [
+          'element' => [
+            '#field_name' => 'field_dummy',
+            '#field_type' => 'string',
+            '#formatter' => 'string',
+            '#entity_type' => 'node',
+            '#bundle' => 'page',
+            '#view_mode' => 'full',
+          ]
+        ];
+      }
+      
+      $suggestions = [];
       try {
-        // This is a simplified simulation of suggestion discovery
-        $runtime_suggestions = $suggestions;
-      } catch (\\Exception $e) {}
+        $suggestions = \\Drupal::moduleHandler()->invokeAll('theme_suggestions_' . $theme_hook, [$variables]);
+        \\Drupal::moduleHandler()->alter('theme_suggestions_' . $theme_hook, $suggestions, $variables);
+      } catch (\\Throwable $e) {
+        // Safe fallback in case of module/theme hook bugs
+      }
 
       return [
         'theme_hook' => $theme_hook,
-        'suggestions' => array_reverse($suggestions),
+        'suggestions' => array_reverse(array_values(array_unique($suggestions))),
         'chosen_priority' => 'The last element in suggestions array usually wins in Drupal.',
       ];
     `;
@@ -73,7 +113,7 @@ export class RenderResolver {
 
       return [
         'theme_hook' => $theme_hook,
-        'preprocess_functions' => $info['preprocess functions'] ?? [],
+        'preprocess_functions' => array_values($info['preprocess functions'] ?? []),
         'template_path' => $info['path'] ?? '',
         'template_name' => $info['template'] ?? '',
         'type' => $info['type'] ?? '',
@@ -102,6 +142,10 @@ export class RenderResolver {
         if ($node) {
           $build = \\Drupal::entityTypeManager()->getViewBuilder('node')->view($node, '${options.view_mode || 'full'}');
         }
+      }
+
+      if (empty($build)) {
+        return ['error' => "Entity {$type} with ID {$id} not found or could not be loaded."];
       }
 
       // Projection: Remove noisy keys
@@ -181,6 +225,10 @@ export class RenderResolver {
          if ($entity) $build = \\Drupal::entityTypeManager()->getViewBuilder('node')->view($entity);
       }
       
+      if (empty($build)) {
+         return ['error' => "Entity {$type} with ID {$id} not found or could not be loaded.", 'libraries' => [], 'drupalSettings_keys' => []];
+      }
+      
       return [
         'libraries' => $build['#attached']['library'] ?? [],
         'drupalSettings_keys' => isset($build['#attached']['drupalSettings']) ? array_keys($build['#attached']['drupalSettings']) : [],
@@ -193,19 +241,21 @@ export class RenderResolver {
    * inspect_blocks_and_regions: Placement summary.
    */
   async getBlocksAndRegions(region?: string) {
+    const escapedRegion = (region || '').replace(/'/g, "\\'");
     const php = `
       $theme = \\Drupal::config('system.theme')->get('default');
       $blocks = \\Drupal::entityTypeManager()->getStorage('block')->loadByProperties(['theme' => $theme]);
       $data = [];
+      $filter_region = '${escapedRegion}';
       foreach ($blocks as $block) {
-        if ('${region || ''}' && $block->getRegion() !== '${region}') continue;
+        if ($filter_region && $block->getRegion() !== $filter_region) continue;
         $data[] = [
           'id' => $block->id(),
           'label' => $block->label(),
           'region' => $block->getRegion(),
           'plugin_id' => $block->getPluginId(),
           'weight' => $block->getWeight(),
-          'status' => $block->status(),
+          'status' => (bool)$block->status(),
         ];
       }
       return $data;

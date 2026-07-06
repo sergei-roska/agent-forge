@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "drupal-operations-debug": {
+      "command": "node",
+      "args": [
+        "/home/sr/Projects/Workspace/agent-forge/standalone/drupal-operations-debug/dist/index.js"
+      ]
+    }
+  }
+}

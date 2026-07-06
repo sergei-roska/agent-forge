@@ -35,6 +35,7 @@ export class BrowserManager {
     const context = await browser.newContext({
       viewport: options.viewport || { width: 1280, height: 720 },
       userAgent: 'Mozilla/5.0 (Forge MCP Server; Browser Observation)',
+      ignoreHTTPSErrors: true,
     });
     
     const page = await context.newPage();

@@ -1,5 +1,5 @@
 {
-  "name": "@local-memory/indexer",
+  "name": "@drupal-forge/server-web-observe-capture",
   "version": "0.1.0",
   "type": "module",
   "main": "dist/index.js",
@@ -15,10 +15,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "latest",
-    "@lancedb/lancedb": "^0.30.0",
-    "apache-arrow": "^18.1.0",
     "@huggingface/transformers": "^4.2.0",
-    "better-sqlite3": "^12.10.0",
-    "typescript": "latest"
+    "playwright": "^1.60.0"
   }
 }

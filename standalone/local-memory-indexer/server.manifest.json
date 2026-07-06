@@ -1,0 +1,17 @@
+{
+  "id": "local-memory-indexer",
+  "name": "Local Memory Indexer",
+  "description": "Write-only index producer: AST/semantic chunking → LanceDB. Async two-phase runs (discovery, embedding); resumable via SQLite checkpoints.",
+  "version": "0.1.0",
+  "capabilities": {
+    "tools": true
+  },
+  "domain": "local_memory",
+  "source_of_truth": "local_index",
+  "prohibitions": [
+    "Must never execute project code during indexing.",
+    "Must never read or write outside the requested project root.",
+    "Must never build a cross-project global index.",
+    "Must never delete LanceDB records without an explicit delete_project_index call."
+  ]
+}
