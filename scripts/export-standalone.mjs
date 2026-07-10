@@ -55,11 +55,16 @@ function makeStandalonePackageJson(srcPkg, externalDeps, extraDependencies = {},
     dependencies[k] = v;
   }
 
+  const binName = srcPkg.name.includes('/') ? srcPkg.name.split('/').pop() : srcPkg.name;
+
   return {
     name: srcPkg.name,
     version: srcPkg.version ?? '0.1.0',
     type: options.type ?? 'module',
     main: `dist/${options.entryFile ?? 'index.js'}`,
+    bin: {
+      [binName]: `dist/${options.entryFile ?? 'index.js'}`,
+    },
     scripts: {
       build: "node -e \"console.log('Standalone bundle is prebuilt')\"",
       start: `node dist/${options.entryFile ?? 'index.js'}`,

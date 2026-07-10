@@ -1,8 +1,11 @@
 {
   "name": "@local-memory/search",
-  "version": "1.0.5",
+  "version": "1.0.7",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "search": "dist/index.js"
+  },
   "scripts": {
     "build": "node -e \"console.log('Standalone bundle is prebuilt')\"",
     "start": "node dist/index.js"

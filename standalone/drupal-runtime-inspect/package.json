@@ -1,8 +1,11 @@
 {
   "name": "@drupal-forge/server-runtime-inspect",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "server-runtime-inspect": "dist/index.js"
+  },
   "scripts": {
     "build": "node -e \"console.log('Standalone bundle is prebuilt')\"",
     "start": "node dist/index.js"

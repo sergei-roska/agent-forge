@@ -1,8 +1,11 @@
 {
   "name": "@drupal-forge/server-config-intelligence",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "server-config-intelligence": "dist/index.js"
+  },
   "scripts": {
     "build": "node -e \"console.log('Standalone bundle is prebuilt')\"",
     "start": "node dist/index.js"

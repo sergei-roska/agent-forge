@@ -1,8 +1,11 @@
 {
   "name": "@drupal-forge/server-web-observe-capture",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "server-web-observe-capture": "dist/index.js"
+  },
   "scripts": {
     "build": "node -e \"console.log('Standalone bundle is prebuilt')\"",
     "start": "node dist/index.js"

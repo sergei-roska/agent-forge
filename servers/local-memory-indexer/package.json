@@ -1,11 +1,11 @@
 {
   "name": "@local-memory/indexer",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "private": true,
   "description": "Write-only producer MCP server: discovers, chunks, and embeds project files into LanceDB (Spec 08.1)",
   "type": "module",
   "bin": {
-    "server-local-memory-indexer": "dist/index.js"
+    "indexer": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

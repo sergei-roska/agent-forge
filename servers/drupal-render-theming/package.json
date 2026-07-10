@@ -1,9 +1,12 @@
 {
   "name": "@drupal-forge/server-render-theming",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "description": "Drupal Render & Theming MCP Server for Forge",
   "private": true,
   "type": "module",
+  "bin": {
+    "server-render-theming": "dist/index.js"
+  },
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

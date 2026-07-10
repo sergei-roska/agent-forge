@@ -1,11 +1,11 @@
 {
   "name": "@drupal-forge/server-operations-debug",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "private": true,
   "description": "MCP server for Drupal runtime diagnosis and health audit (Spec 05)",
   "type": "module",
   "bin": {
-    "server-drupal-operations-debug": "dist/index.js"
+    "server-operations-debug": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

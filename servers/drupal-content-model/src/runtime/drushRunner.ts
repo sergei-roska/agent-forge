@@ -23,17 +23,15 @@ export class DrushRunner {
   private async detectEnvironment(): Promise<'lando' | 'ddev' | 'docker' | 'local'> {
     if (this.environment) return this.environment;
 
-    try {
-      await execAsync('lando version', { cwd: this.rootDir });
+    if (existsSync(join(this.rootDir, '.lando.yml'))) {
       this.environment = 'lando';
       return 'lando';
-    } catch { /* Fallback */ }
+    }
 
-    try {
-      await execAsync('ddev --version', { cwd: this.rootDir });
+    if (existsSync(join(this.rootDir, '.ddev'))) {
       this.environment = 'ddev';
       return 'ddev';
-    } catch { /* Fallback */ }
+    }
 
     this.environment = 'local';
     return 'local';

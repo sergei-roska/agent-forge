@@ -1,8 +1,11 @@
 {
   "name": "@drupal-forge/server-render-theming",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "server-render-theming": "dist/index.js"
+  },
   "scripts": {
     "build": "node -e \"console.log('Standalone bundle is prebuilt')\"",
     "start": "node dist/index.js"

@@ -1,11 +1,11 @@
 {
   "name": "@drupal-forge/server-codebase-introspect",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "private": true,
   "description": "MCP server for Drupal codebase introspection and mapping (Spec 04)",
   "type": "module",
   "bin": {
-    "server-drupal-codebase-introspect": "dist/index.js"
+    "server-codebase-introspect": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

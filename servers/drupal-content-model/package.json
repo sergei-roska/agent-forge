@@ -1,8 +1,11 @@
 {
   "name": "@drupal-forge/server-content-model",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "description": "Drupal Content Model MCP Server",
   "type": "module",
+  "bin": {
+    "server-content-model": "dist/index.js"
+  },
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
