@@ -1,6 +1,6 @@
 {
   "name": "@drupal-forge/server-operations-debug",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "description": "MCP server for Drupal runtime diagnosis and health audit (Spec 05)",
   "type": "module",

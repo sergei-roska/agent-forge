@@ -1,6 +1,6 @@
 {
   "name": "@drupal-forge/server-config-intelligence",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "description": "MCP server for Drupal configuration lifecycle (Spec 03)",
   "type": "module",

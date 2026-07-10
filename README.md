@@ -68,22 +68,6 @@ Add the following block to your MCP client configuration (e.g. `claude_desktop_c
       "command": "npx",
       "args": ["-y", "@drupal-forge/server-runtime-inspect"]
     },
-    "local-memory-indexer": {
-      "command": "npx",
-      "args": ["-y", "@local-memory/indexer"],
-      "env": {
-        "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/sr/.agent-forge/local-memory-search",
-        "OLLAMA_BASE_URL": "http://127.0.0.1:11434"
-      }
-    },
-    "local-memory-search": {
-      "command": "npx",
-      "args": ["-y", "@local-memory/search"],
-      "env": {
-        "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/sr/.agent-forge/local-memory-search",
-        "OLLAMA_BASE_URL": "http://127.0.0.1:11434"
-      }
-    },
     "web-observe-capture": {
       "command": "npx",
       "args": ["-y", "@drupal-forge/server-web-observe-capture"]

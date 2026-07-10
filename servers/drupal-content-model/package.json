@@ -1,6 +1,6 @@
 {
   "name": "@drupal-forge/server-content-model",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Drupal Content Model MCP Server",
   "type": "module",
   "bin": {

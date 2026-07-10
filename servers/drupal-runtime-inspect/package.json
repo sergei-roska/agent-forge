@@ -1,6 +1,6 @@
 {
   "name": "@drupal-forge/server-runtime-inspect",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "type": "module",
   "bin": {
     "server-runtime-inspect": "dist/index.js"
