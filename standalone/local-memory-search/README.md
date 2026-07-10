@@ -26,7 +26,7 @@ search latency is never impacted by background indexing writes.
 - **Agent-ready context packs** — token-budgeted excerpts with optional neighbor
   expansion and optional `qwen3.5:9b` LLM re-ranking.
 
-## 🧰 Available Tools (11, read-only)
+## 🧰 Available Tools (15, read-only)
 
 | Tool | Purpose |
 |---|---|
@@ -41,34 +41,111 @@ search latency is never impacted by background indexing writes.
 | `health_check` | Readiness: LanceDB, embedding backend, FTS, `schema_version`. |
 | `index_status` | Indexed file/chunk counts, freshness, stale ratio. |
 | `doctor_index` | Diagnose schema/FTS/count inconsistencies (read-only; suggests actions). |
+| `find_callers` | List symbols that call symbol_name (call-graph upstream). |
+| `find_callees` | List symbols called by symbol_name (call-graph downstream). |
+| `get_import_graph` | List import/dependency edges. Omit file_path for project-wide graph. |
+| `trace_path` | Find call chain from source_symbol to target_symbol. |
 
 > `delete_project_index` is **intentionally not exposed** — delete operations
 > belong exclusively to the indexer process.
 
 ### Common search parameters
 
-Most search tools accept:
+Most search tools (`search_hybrid`, `search_semantic`, `search_keyword`) accept:
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `project_path` | string | env default | Absolute path to the indexed project root. |
-| `query` | string | *(required)* | Natural-language or keyword query. |
-| `limit` | integer | `10` | Max results to return. |
-| `offset` | integer | `0` | Pagination offset. |
-| `max_chars` | integer | `2000` | Truncate chunk text in results. |
-| `summary_only` | boolean | `false` | Return compact summaries instead of full text. |
-| `filters` | object | — | Filter by `file_path`, `language`, `chunk_kind`, etc. |
+| `query` | string | *(required)* | Search text: identifiers, keywords, or natural language. |
+| `limit` | integer | `10` | Max results (1–50). |
+| `offset` | integer | `0` | Skip N results (pagination offset). |
+| `max_chars` | integer | `800` | Truncate each chunk text in results. |
+| `summary_only` | boolean | `false` | Return summaries only; omit chunk text. |
+| `filters` | object | — | Pre-filter hits before ranking (see keys below). |
+| `fields` | array of strings | — | Include only these chunk fields in response. |
+| `exclude_fields` | array of strings | — | Omit these fields from the default set. |
+| `recency_weight` | number | `0.1` | Recency boost weight. Use `0` to disable. |
+| `gap_threshold` | number | `0.25` | Drop hits below this relevance-gap ratio. |
+| `cache_bust` | boolean | `false` | Bypass result cache. |
 
-`search_hybrid` additionally accepts `alpha` (vector vs keyword weight, default
-`0.5`), `rrf_k`, `recency_weight`, and `gap_threshold`.
+`search_hybrid` additionally accepts:
+- `alpha` (number, default `0.65`): RRF semantic weight (`0` = keyword-only, `1` = semantic-only).
+- `rrf_k` (integer, default `60`): RRF k constant.
+
+#### Metadata Filters (`filters` object)
+
+The `filters` object is strictly validated. The supported keys (all optional) are:
+- `language` (string): Language tag, e.g. `typescript`.
+- `file_extensions` (array of strings): Extensions without dot, e.g. `["ts", "py"]`.
+- `path_prefix` (string): Repo-relative path prefix.
+- `updated_after` (string): ISO 8601 datetime; keep chunks newer than this.
+- `tags` (array of strings): Match any listed tag.
+- `class_name` (string): Exact class name.
+- `function_name` (string): Exact function/method name.
+- `last_commit_hash` (string): Exact git commit hash.
+
+> [!NOTE]
+> Keys like `file_path` and `chunk_kind` are NOT supported inside the `filters` object.
 
 ### Context & diagnostics highlights
 
-- **`retrieve_context_pack`** — `max_files`, `max_chars`, `include_neighbors`,
-  `neighbor_hops`, `rerank`, `truncate_strategy`.
-- **`read_chunk_neighbors`** — `chunk_id`, `before`, `after` (chunk counts).
-- **`search_similar`** — `file_path` + optional `symbol` or `start_line`.
-- **`health_check`** — optional `verbose` for chunk counts and schema versions.
+- **`retrieve_context_pack`** — Excerpt pack for LLM prompts. Accepts:
+  - `query` (string, required): Search query.
+  - `project_path` (string, optional)
+  - `max_files` (integer, default `8`): Max distinct files.
+  - `max_chars` (integer, default `12000`): Total char budget for all excerpts.
+  - `include_neighbors` (boolean, default `true`): Append adjacent chunks.
+  - `neighbor_hops` (integer, default `1`): Expansion depth (0–3).
+  - `rerank` (boolean, default `false`): LLM rerank via `granite4.1:3b`.
+  - `truncate_strategy` (enum: `"middle" | "tail" | "head"`, default `"middle"`).
+  - `filters` (object, optional): Pre-filter hits.
+  - `alpha` (number, default `0.65`).
+- **`read_chunk_neighbors`** — Load adjacent chunks before/after. Accepts:
+  - `chunk_id` (string, required)
+  - `project_path` (string, optional)
+  - `before` (integer, default `2`, max 5)
+  - `after` (integer, default `2`, max 5)
+- **`get_chunk`** — Fetch a single chunk. Accepts:
+  - `chunk_id` (string, required)
+  - `project_path` (string, optional)
+  - `fields` (array of strings, optional)
+  - `max_chars` (integer, default `0` = no truncation)
+- **`search_similar`** — Vector similarity based on file/function vector. Accepts:
+  - `file_path` (string, required): Repo-relative file path of seed chunk.
+  - `project_path` (string, optional)
+  - `function_name` (string, optional): Restrict seed to this function/method.
+  - `limit` (integer, default `10`)
+  - `filters` (object, optional)
+  - `max_chars` (integer, default `800`)
+- **`explain_match`** — Score breakdown for ranking. Accepts:
+  - `query` (string, required)
+  - `result_id` (string, required): `chunk_id` to explain.
+  - `project_path` (string, optional)
+  - `alpha` (number, default `0.65`)
+  - `verbosity` (enum: `"compact" | "full"`, default `"compact"`)
+- **`health_check`** — Check system readiness. Accepts:
+  - `project_path` (string, optional)
+  - `verbose` (boolean, default `false`): Include capabilities and diagnostics.
+- **`index_status`** — Report counts. Accepts `project_path` (string, optional).
+- **`doctor_index`** — Diagnose inconsistencies. Accepts `project_path` (string, optional) and `auto_fix` (boolean, default `false`, no-op here).
+
+### Call Graph & Import Tools
+
+- **`find_callers`** — List symbols calling the target symbol. Accepts:
+  - `symbol_name` (string, required): Callee symbol to reverse-lookup.
+  - `project_path` (string, optional)
+  - `depth` (integer, default `1`, max 3): Hop depth.
+- **`find_callees`** — List symbols called by target symbol. Accepts:
+  - `symbol_name` (string, required): Caller symbol.
+  - `project_path` (string, optional)
+  - `depth` (integer, default `1`, max 3)
+- **`get_import_graph`** — List import/dependency edges. Accepts:
+  - `file_path` (string, optional): Repo-relative path; omit for project-wide.
+  - `project_path` (string, optional)
+- **`trace_path`** — Find call chain between symbols. Accepts:
+  - `source_symbol` (string, required): Start symbol name or qualified path.
+  - `target_symbol` (string, required): End symbol name or qualified path.
+  - `project_path` (string, optional)
 
 ## 🤖 Default Local Model Stack
 

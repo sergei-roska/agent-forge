@@ -25,7 +25,7 @@ MCP server for mapping Drupal runtime behaviors to actionable file locations.
 | `find_preprocess_functions` | Identify preprocess functions for hooks and themes. |
 | `find_drush_commands` | Locate classes providing custom Drush commands. |
 | `trace_runtime_to_code` | Unified entry point for symbolic-to-file resolution. |
-| `summarize_code_inventory` | Narrative overview of the codebase architecture. |
+| `summarize_code_inventory` | Structured count of custom modules, services, and routes. Use for initial codebase orientation. |
 
 ## 🚀 Quick Start (Forge)
 

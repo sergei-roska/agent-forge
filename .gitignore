@@ -20,6 +20,7 @@ models/
 # These are local files for AI context and standalone testing
 docs/
 .standalone-smoke/
+servers/web-observe-capture/artifacts/
 
 # --- Editor & System ---
 .DS_Store

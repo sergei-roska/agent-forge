@@ -4,26 +4,32 @@ MCP server for structural editorial architecture. It explains how content is mod
 
 ## ✨ Features
 
-- **Entity Relationship Graph**: Traverses `entity_reference` fields to build a mental map of the site structure.
-- **Editorial Summary**: Zero-configuration tool to get a high-level narrative of the architecture (Node, Media, Taxonomy).
+- **Entity Relationship Graph**: Traverses `entity_reference`, `entity_reference_revisions`, `image`, and `file` fields to map the full content relationship graph.
+- **Editorial Summary**: Composite snapshot of bundle counts, reference edges, and moderation state for an entity domain.
 - **Life-cycle Visibility**: Inspect revisioning, translation, and moderation workflows.
-- **Field Usage**: Analyze where fields are used across bundles without raw config noise.
-- **Drush-Powered**: Zero-configuration, context-aware Project Root discovery.
+- **Field Usage**: Analyze where fields are used across bundles — either per-bundle or aggregated across all bundles.
+- **Drush-Powered**: Executes PHP inside the active Drupal environment via `drush php-script`. Auto-detects Lando, DDEV, or local Drush.
 
 ## 🧰 Available Tools (10)
 
-| Tool | Purpose |
-|---|---|
-| `inspect_content_types` | Summarize node bundles and editorial settings. |
-| `inspect_media_types` | Summarize media bundles and source plugins. |
-| `inspect_taxonomy_models` | Summarize vocabularies and term architecture. |
-| `inspect_field_usage` | Explain how fields are used across bundles. |
-| `inspect_reference_graph` | Show entity reference edges between bundles. |
-| `inspect_display_modes` | Summarize view mode and form mode usage. |
-| `inspect_revisioning` | Explain revisioning defaults and UI implications. |
-| `inspect_translation` | Summarize translatability at entity/bundle levels. |
-| `inspect_moderation` | Map bundles to content moderation workflows. |
-| `summarize_editorial_model` | Narrative summary of the editorial architecture. |
+| Tool | Required params | Returns | Module deps |
+|---|---|---|---|
+| `inspect_content_types` | — | `bundle`, `label`, `revisionable`, `workflow` | `content_moderation` (optional) |
+| `inspect_media_types` | — | `bundle`, `label`, `source_plugin`, `translatable` | `media`; `content_translation` (optional) |
+| `inspect_taxonomy_models` | — | `vocabulary`, `label` | `taxonomy` |
+| `inspect_field_usage` | `entity_type_id` | `name`, `type`, `label`, `bundle` / `bundles[]` | — |
+| `inspect_reference_graph` | `entity_type_id` | `bundle`, `field`, `type`, `target_type`, `target_bundles` | — |
+| `inspect_display_modes` | `entity_type_id` | `view_modes[]`, `form_modes[]` | — |
+| `inspect_revisioning` | `entity_type_id` | `revisionable`, `revision_ui` | — |
+| `inspect_translation` | `entity_type_id` | `translatable` | `content_translation` |
+| `inspect_moderation` | `entity_type_id` + `bundle` (recommended) | `moderated`, `workflow`, `states[]` | `content_moderation` |
+| `summarize_editorial_model` | `entity_type_id` | `domain`, `bundle`, `bundles_count`, `reference_edges`, `moderation`, `top_references[]` | `content_moderation` (optional) |
+
+> **Note on `inspect_revisioning`**: Revisioning is an entity-type-level setting in Drupal — the `bundle` parameter is not accepted by this tool. Always call it with `entity_type_id` only (e.g. `node`, `block_content`).
+
+> **Note on `inspect_moderation`**: Although `bundle` is technically optional in the schema, calling without it **always returns `moderated: false`**, because Drupal workflow assignment is per-bundle. Always provide both `entity_type_id` and `bundle` for meaningful results.
+
+> **Note on `inspect_taxonomy_models`**: Use the `vocabulary` parameter (not `bundle`) to filter by a specific vocabulary machine_name.
 
 ## 🚀 Quick Start (Forge)
 
@@ -35,7 +41,8 @@ npm run build
 ```
 
 ### Configure MCP Client
-Point your client to `dist/index.js`. It will **automatically detect** the Drupal project root from your workspace.
+
+Point your client to `dist/index.js`. The server discovers the Drupal project root automatically by walking up from `process.cwd()`, looking for `web/core`, `docroot/core`, or `core/index.php`.
 
 ```json
 {
@@ -50,6 +57,9 @@ Point your client to `dist/index.js`. It will **automatically detect** the Drupa
 }
 ```
 
+**Optional environment variables** (for multisite or non-default URI):
+- `DRUSH_OPTIONS_URI` or `DRUSH_URI` — passed as `--uri=` to every Drush invocation.
+
 ## 🧪 AI Agent Verification & Stress Test
 
 If you are an AI agent tasked with verifying this server, follow this protocol strictly:
@@ -60,10 +70,10 @@ Validate the structural relationship mapping and editorial narrative depth of th
 ### 🛠 Sequential Testing Protocol
 Verify each tool fully before proceeding.
 
-1. **`summarize_editorial_model`**: Start here to get the "Big Picture". Evaluate if the narrative correctly describes the site's complexity.
-2. **`inspect_reference_graph`**: Pick a bundle (e.g. node:article) and verify that it lists all outgoing `entity_reference` edges (to Media, Taxonomy, etc.).
-3. **`inspect_field_usage`**: Pick a common field and verify it identifies all bundles where that field is attached.
-4. **`inspect_moderation`**: Verify it correctly identifies the active Workflow (if any) for a given set of bundles.
+1. **`summarize_editorial_model`** `{ entity_type_id: "node" }` — Start here to get the "Big Picture". Verify that `bundles_count` matches the count from `inspect_content_types`, and `reference_edges` is non-zero if the site has any `entity_reference` fields.
+2. **`inspect_reference_graph`** `{ entity_type_id: "node", bundle: "article" }` — Verify that it lists all outgoing reference edges (to Media, Taxonomy, etc.) and that `target_bundles` is either an array or `"all"`.
+3. **`inspect_field_usage`** `{ entity_type_id: "node", bundle: "article" }` — Verify the list of fields on the bundle. Then call without `bundle` to confirm the aggregated result includes a `bundles[]` array per field.
+4. **`inspect_moderation`** `{ entity_type_id: "node", bundle: "article" }` — Verify it correctly identifies the active Workflow (if any) and lists all states.
 
 ### 📝 Evaluation Criteria
 For each tool:
@@ -71,4 +81,4 @@ For each tool:
 - **Graph Coverage**: Are there missing connections or is the graph complete?
 
 **Produce an "Editorial Architecture Review" for each tool before moving to the next.**
-```
+
