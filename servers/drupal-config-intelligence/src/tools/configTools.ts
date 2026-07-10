@@ -145,7 +145,7 @@ export const findConfigOwnerTool = (rootDir: string): ToolDefinition => ({
 
 export const detectConfigDriftTool = (rootDir: string): ToolDefinition => ({
   name: 'detect_config_drift',
-  description: 'List all active≠sync configs (drush cst). Returns name + operation per item. Use for site-wide drift audit.',
+  description: 'List all active≠sync configs (Drupal StorageComparer via Drush PHP eval). Returns name + operation per item; on Drush failure returns drift_count=null with a warning. Use for site-wide drift audit.',
   inputSchema: {
     ...SharedArgsSchema.shape,
     prefix: z.string().optional()
@@ -201,7 +201,7 @@ export const analyzeConfigImpactTool = (rootDir: string): ToolDefinition => ({
 
 export const inspectConfigSplitStateTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_config_split_state',
-  description: 'List Config Split definitions and enabled state. Returns split names, folders, graylist/blacklist. Use for multi-env deploy.',
+  description: 'List Config Split definitions and enabled state. Returns split names, folders, complete_list (fully excluded) and partial_list (conditionally included), include_count, exclude_count. Use for multi-env deploy.',
   inputSchema: {
     split_name: z.string().optional()
       .describe('Split machine name. Omit to list all splits.'),
@@ -228,7 +228,7 @@ export const inspectConfigSplitStateTool = (rootDir: string): ToolDefinition => 
 
 export const inspectRecipeStateTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_recipe_state',
-  description: 'Report applied Drupal Recipes (D10.3+). Returns recipe status and managed config lists.',
+  description: '[Best-effort] Report applied Drupal Recipes (D10.3+). Returns recipe_name, managed_config_count, missing_count, changed_count, supported. NOTE: Drupal has no stable public API for applied recipe state; results are best-effort estimates.',
   inputSchema: {
     recipe_name: z.string().optional()
       .describe('Recipe machine name. Omit to list all applied recipes.'),
@@ -255,7 +255,7 @@ export const inspectRecipeStateTool = (rootDir: string): ToolDefinition => ({
 
 export const summarizeDeploymentRiskTool = (rootDir: string): ToolDefinition => ({
   name: 'summarize_deployment_risk',
-  description: 'Aggregate deploy risk across drift + splits. Returns narrative summary and blockers. Use before config deploy.',
+  description: 'Aggregate deploy risk across drift + splits. Returns summary (string), highest_risk_items (string[]), blockers (string[]), suggested_checks (string[]). Takes no arguments. Use before config deploy.',
   inputSchema: {} as any,
   handler: async (args) => {
     try {
