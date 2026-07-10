@@ -44,20 +44,27 @@ export class CaptureResolver {
 
     if (options.selector) {
       const element = await page.$(options.selector);
-      if (element) {
-        const box = await element.boundingBox();
-        if (box) {
-          clip = box;
-          source = `selector:${options.selector}`;
-        }
+      if (!element) {
+        throw new Error(`Element not found for selector: ${options.selector}`);
       }
-    } else if (options.x !== undefined && options.y !== undefined) {
+      const box = await element.boundingBox();
+      if (!box) {
+        throw new Error(`Element for selector: ${options.selector} has no bounding box (it may be hidden or not rendered)`);
+      }
+      clip = box;
+      source = `selector:${options.selector}`;
+    } else if (options.x !== undefined || options.y !== undefined) {
+      if (options.x === undefined || options.y === undefined) {
+        throw new Error('Both x and y coordinates must be specified for coordinate-based screenshot');
+      }
       clip = {
         x: options.x,
         y: options.y,
         width: options.width || 100,
         height: options.height || 100
       };
+    } else {
+      throw new Error('Either selector or x/y coordinates must be specified for region screenshot');
     }
 
     const path = this.generateImagePath('region');
@@ -74,7 +81,7 @@ export class CaptureResolver {
    */
   async domExcerpt(page: Page, options: any) {
     const selector = options.selector || 'body';
-    const maxChars = options.max_chars || 1000;
+    const maxChars = options.max_chars || 2000;
     
     const excerpt = await page.evaluate(({ selector, includeOuter, limit }) => {
       const el = document.querySelector(selector);
@@ -131,7 +138,7 @@ export class CaptureResolver {
    * capture_page_snapshot: Structured page summary
    */
   async pageSnapshot(page: Page, options: any) {
-    const maxNodes = options.max_nodes || 50;
+    const maxNodes = options.max_nodes || 100;
     const snapshot = await page.evaluate((limit) => {
       const nodes = Array.from(document.querySelectorAll('*')).slice(0, limit);
       return nodes.map(n => ({
