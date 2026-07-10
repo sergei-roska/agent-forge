@@ -25,6 +25,12 @@ process restarts via a SQLite checkpoint queue.
 - **Graceful pause** — `pause_indexing` finishes the current embedding batch,
   checkpoints state, and allows resumption via `start_indexing`.
 
+## 🛡️ Security
+
+This server reads files under the requested `project_path` and writes index
+data to the local data root. It never executes project code. Only use it on
+projects you trust and only with absolute paths you control.
+
 ## 🧰 Available Tools (6)
 
 | Tool | Purpose |
@@ -172,44 +178,88 @@ $LOCAL_VECTOR_SEARCH_DATA_ROOT/<project-slug>/
 Replace paths with the actual absolute paths to your built `dist/index.js` files.
 Both servers **must share the same** `LOCAL_VECTOR_SEARCH_DATA_ROOT`.
 
-## 🧪 AI Agent Verification & Stress Test
+## 🎬 Exploratory Demo Scenario
 
-If you are an AI agent tasked with verifying this server, follow this protocol
-strictly:
+Follow this step-by-step developer journey to explore how the server builds, monitors, pauses, resumes, validates, and cleans up local semantic indexes. You can execute these tools sequentially to experience the indexer's features in action.
 
-### 🎯 Objective
+### 1. Resetting with a Clean Slate
 
-Validate that indexing produces a searchable LanceDB index and that runs are
-resumable and observable.
+Before building a new index, let's ensure we are starting with a clean slate. We'll use the cleanup tool to remove any pre-existing index data for our project:
 
-### 🛠 Sequential Testing Protocol
+- **Tool:** `delete_project_index`
+- **Parameters:**
+  ```json
+  {
+    "project_path": "/absolute/path/to/your-project"
+  }
+  ```
+- **Insight:** The server deletes both the LanceDB vector database and the SQLite checkpoint database under the project-specific data directory, freeing up storage and ensuring a clean environment.
 
-One tool at a time. Use a small test project with a few source files.
+### 2. Initializing the Indexing Pipeline
 
-1. **`start_indexing`**: Run with `project_path` set to an absolute project
-   root. Confirm immediate return with a `run_id` and `phases` array.
-2. **`get_indexing_status`**: Poll until `status` is `completed`. Verify
-   `files_discovered`, `chunks_embedded`, and a progress bar during the run.
-3. **`pause_indexing`** *(optional)*: Start a large run, pause mid-embedding,
-   confirm `status: paused`, then resume with `start_indexing` on the same
-   project.
-4. **Hand off to search**: Run `health_check` on `local-memory-search` for the
-   same `project_path` and confirm `lancedb_available: true`.
+Now, let's start the indexing pipeline. The indexer works in two phases: *discovery* (scanning and parsing files) and *embedding* (generating and saving vectors). It operates asynchronously to keep your workflow unblocked:
 
-### 📝 Evaluation Criteria
+- **Tool:** `start_indexing`
+- **Parameters:**
+  ```json
+  {
+    "project_path": "/absolute/path/to/your-project",
+    "phases": ["discovery", "embedding"],
+    "enrich": true
+  }
+  ```
+- **Insight:** The tool immediately returns a unique `run_id` and the list of queued phases. Under the hood, the server initiates an AST-aware parser and starts enqueueing chunks for embedding.
 
-For each step:
+### 3. Observing Real-Time Progress
 
-- **Isolation**: Does indexing stay within the requested `project_path`?
-- **Resumability**: After pause or process restart, does embedding continue
-  from the checkpoint?
-- **Idempotency**: Does a second `start_indexing` without `force` skip
-  unchanged files?
+Since indexing runs in the background, you can inspect the process state in real-time:
 
-**Produce an "Indexing Run Audit" before querying via the search server.**
+- **Tool:** `get_indexing_status`
+- **Parameters:**
+  ```json
+  {
+    "run_id": "YOUR_RUN_ID"
+  }
+  ```
+- **Insight:** You will receive live metrics showing the number of files discovered, chunks generated, progress percentage, estimated time of arrival (ETA), and any warning flags.
 
-## 🛡️ Security
+### 4. Suspending the Run
 
-This server reads files under the requested `project_path` and writes index
-data to the local data root. It never executes project code. Only use it on
-projects you trust and only with absolute paths you control.
+If you are running a large indexing job and want to temporarily free up CPU or GPU resources, you can gracefully pause the embedding phase:
+
+- **Tool:** `pause_indexing`
+- **Parameters:**
+  ```json
+  {
+    "run_id": "YOUR_RUN_ID"
+  }
+  ```
+- **Insight:** The indexer stops processing new embedding batches and saves its exact progress state as a checkpoint in the SQLite queue database.
+
+### 5. Resuming from Checkpoints
+
+Once resources are free, you can pick up indexing exactly where it was suspended without starting over:
+
+- **Tool:** `resume_indexing`
+- **Parameters:**
+  ```json
+  {
+    "run_id": "YOUR_RUN_ID",
+    "project_path": "/absolute/path/to/your-project"
+  }
+  ```
+- **Insight:** The server reads the SQLite checkpoint queue, matches it with the files already embedded, and resumes embedding the remaining chunks.
+
+### 6. Diagnosing and Repairing Index Health
+
+To ensure your index is healthy, consistent, and optimized, you can perform a self-diagnostic check:
+
+- **Tool:** `doctor_index`
+- **Parameters:**
+  ```json
+  {
+    "project_path": "/absolute/path/to/your-project",
+    "auto_fix": true
+  }
+  ```
+- **Insight:** This runs checks against SQLite queue states, LanceDB vector collections, Full-Text Search (FTS) indexes, and file change fingerprints. Setting `auto_fix: true` lets the server automatically repair any safe issues (like minor database drift or stale entries).

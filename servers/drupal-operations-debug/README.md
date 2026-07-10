@@ -235,25 +235,60 @@ To use this server in your MCP client (e.g., Claude Desktop), add the following 
 | `DRUSH_OPTIONS_URI` | Sets `--uri` for Drush (multisite or custom URL). Takes priority over `DRUSH_URI`. |
 | `DRUSH_URI` | Fallback URI for Drush. |
 
-## 🧪 AI Agent Verification & Stress Test
+## 🧭 Interactive Explorer's Journey & Capability Demo
 
-If you are an AI agent tasked with verifying this server, follow this protocol strictly:
+This guided demo walkthrough showcases the power of the Drupal Operations & Debug server. Follow along to experience how an agent or developer explores a Drupal site's operational health, identifies anomalies, and drills down into runtime details using all 9 available tools in a cohesive journey.
 
-### 🎯 Objective
-Verify the runtime diagnostic precision and failure isolation capabilities of this server.
+### 1. The Landing: Environment Discovery
+Your journey starts with safe discovery. You want to understand the environment you are inspecting without exposing passwords or secret keys.
 
-### 🛠 Sequential Testing Protocol
-One tool at a time. No parallel verification.
+*   **Action**: Call `debug_environment_summary` with `include_runtime_versions: true`.
+*   **Discovery**: Instantly see the exact Drupal version, PHP version, database driver, cache backend, and whether maintenance mode is active.
 
-1. **`debug_runtime_health`**: Run first to get a sitewide baseline. Check `health_status`, `alerts`, and verify `include_recommendations=true` populates `next_steps`.
-2. **`debug_watchdog`**: Test filtering by `severity` first (e.g. `"3"`), then test the `wid` exact-lookup. Verify that output rows have the field `event_id` (not `wid`) and that `message` is HTML-stripped.
-3. **`debug_failed_operations`**: Check the aggregated `failures[]` array. Verify the `domain` field identifies the source subsystem for each failure. Note the exact-match severity limitation.
-4. **`debug_state_system`**: Use `allowlist_profile: "cron"` first. Then attempt a key outside the allowlist and verify it is silently dropped (not returned or errored).
+### 2. The Radar: Sitewide Health Scan
+Next, perform a quick high-level audit to see if the site requires immediate attention.
 
-### 📝 Evaluation Criteria
-For each tool:
-- **Signal-to-Noise**: Is there any "junk" data in the array?
-- **Context Clarity**: Does the tool help you identify the *root cause* of a failure immediately?
-- **Safety**: Verify that `debug_environment_summary` never returns passwords or salt values, and that `debug_state_system` filters non-allowlisted keys.
+*   **Action**: Call `debug_runtime_health` with `include_recommendations: true`.
+*   **Discovery**: Check the aggregated `health_status` and look at `alerts`. The `next_steps` suggestions provide actionable hints for any warning states, guiding your exploration.
 
-**Provide a "Diagnostics Audit Report" for each tool before moving to the next.**
+### 3. The Scout: Domain-Wide Failure Probe
+Now, inspect the site for any hidden issues across its subsystems.
+
+*   **Action**: Call `debug_failed_operations` with a `since` value (e.g., `"-1 day"`).
+*   **Discovery**: Get an aggregated overview of issues spanning database logs, background tasks, cron status, and pending updates, consolidated into a single failure list.
+
+### 4. The Detective: Deep-Dive Log Inspection
+If any warnings appeared in the database logs during your scan, it is time to investigate them directly in the watchdog logs.
+
+*   **Action**: Call `debug_watchdog` with `severity: "3"` (errors) or filter with a search `query`.
+*   **Discovery**: Retrieve clean, HTML-stripped log messages with accurate timestamps. To isolate a specific issue, take a row's `event_id` and query it using the `wid` filter.
+
+### 5. The Pulse: Cron Heartbeat Check
+Background tasks are the heartbeat of Drupal. Let's make sure the cron runner is healthy.
+
+*   **Action**: Call `debug_cron_state`.
+*   **Discovery**: Verify when cron last ran, check if the execution status is `OK` or stale, and inspect `is_running` to see if a background cron run is currently holding the cooperative lock.
+
+### 6. The Conveyor: Queue Backlog Analysis
+If cron is running, check what tasks are waiting in the queue to be processed.
+
+*   **Action**: Call `debug_queue_state` with `include_claimed: true`.
+*   **Discovery**: See a list of active queues, their backlog sizes (`item_count`), the age of the oldest pending item, and how many items are currently claimed/locked by workers.
+
+### 7. The Blueprint: Database Schema Status
+Next, let's verify if the site's codebase is in sync with its database schema.
+
+*   **Action**: Call `debug_update_state` with `include_pending: true`.
+*   **Discovery**: Learn if there are any pending database updates (`hook_update_N`) or entity definition changes waiting to be applied, grouped by module.
+
+### 8. The Engine: Cache Bin Analysis
+Inspect how data caching is performing.
+
+*   **Action**: Call `debug_cache_state` with `include_size_estimate: true`.
+*   **Discovery**: Analyze key cache bins (like `default`, `render`, `config`) to see entry counts, stale items, and the cache invalidation ratio, helping identify cache bloat or high invalidation rates.
+
+### 9. The Archives: System State Query
+Conclude your exploration by inspecting key Drupal settings stored in the system state engine.
+
+*   **Action**: Call `debug_state_system` using the `allowlist_profile: "cron"`, or specify explicit keys.
+*   **Discovery**: Read variables like `system.cron_last` or `system.maintenance_mode`. Notice how keys outside the safe allowlist are automatically and silently ignored to guarantee runtime security.

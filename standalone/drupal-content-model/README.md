@@ -60,25 +60,47 @@ Point your client to `dist/index.js`. The server discovers the Drupal project ro
 **Optional environment variables** (for multisite or non-default URI):
 - `DRUSH_OPTIONS_URI` or `DRUSH_URI` — passed as `--uri=` to every Drush invocation.
 
-## 🧪 AI Agent Verification & Stress Test
+## 🧭 Exploration & Demonstration Journey
 
-If you are an AI agent tasked with verifying this server, follow this protocol strictly:
+Follow this step-by-step scenario to explore the Drupal content architecture and discover how various content entities, media assets, and relationships are structured and governed.
 
-### 🎯 Objective
-Validate the structural relationship mapping and editorial narrative depth of the content model server.
+### Step 1: Getting the Bird's-Eye View
+Start by obtaining a high-level summary of the editorial model. This sets the stage and helps you understand the general scale and complexity of the Drupal site's content ecosystem.
+*   **Tool**: `summarize_editorial_model`
+*   **Arguments**: `{ entity_type_id: "node" }`
+*   **Value**: You'll discover the primary entity domain, the total number of content bundles (content types), how many reference relationships connect them, and the top-referenced content types.
 
-### 🛠 Sequential Testing Protocol
-Verify each tool fully before proceeding.
+### Step 2: Surveying the Content & Media Archetypes
+Now that you have the big picture, explore the specific building blocks available to content creators: nodes, media, and taxonomy structures.
+*   **Tools**:
+    *   `inspect_content_types` (no arguments): Lists all content types (e.g., Articles, Pages), whether they support revisions, and which publishing workflows govern them.
+    *   `inspect_media_types` (no arguments): Reveals the media bundles configured (e.g., Image, Document, Video), their underlying source plugins, and whether they are translatable.
+    *   `inspect_taxonomy_models` (no arguments): Details the vocabulary schemas used for classification and tagging.
+*   **Value**: This maps the structural diversity of the site, showing how content, rich media assets, and categorization vocabularies are classified.
 
-1. **`summarize_editorial_model`** `{ entity_type_id: "node" }` — Start here to get the "Big Picture". Verify that `bundles_count` matches the count from `inspect_content_types`, and `reference_edges` is non-zero if the site has any `entity_reference` fields.
-2. **`inspect_reference_graph`** `{ entity_type_id: "node", bundle: "article" }` — Verify that it lists all outgoing reference edges (to Media, Taxonomy, etc.) and that `target_bundles` is either an array or `"all"`.
-3. **`inspect_field_usage`** `{ entity_type_id: "node", bundle: "article" }` — Verify the list of fields on the bundle. Then call without `bundle` to confirm the aggregated result includes a `bundles[]` array per field.
-4. **`inspect_moderation`** `{ entity_type_id: "node", bundle: "article" }` — Verify it correctly identifies the active Workflow (if any) and lists all states.
+### Step 3: Deep Diving into Field Layouts & Reuse
+Zoom in on a specific content type (like `article`) to understand its fields and see how fields are shared across the system.
+*   **Tools**:
+    *   `inspect_field_usage` `{ entity_type_id: "node", bundle: "article" }`: Inspect the specific fields mapped to the Article bundle, including their machine names and field types.
+    *   `inspect_field_usage` `{ entity_type_id: "node" }`: Execute this without a bundle to see a global catalog of fields, revealing which fields are reused across multiple bundles.
+*   **Value**: You'll see the exact schema of a bundle and identify shared fields, helping you evaluate field reuse efficiency and consistency.
 
-### 📝 Evaluation Criteria
-For each tool:
-- **Narrative Value**: Does the output help you "understand" the architecture or just "read" it?
-- **Graph Coverage**: Are there missing connections or is the graph complete?
+### Step 4: Mapping the Entity Relationship Graph
+Content in Drupal is rarely isolated. Trace how different content entities, media assets, and taxonomies link together.
+*   **Tool**: `inspect_reference_graph` `{ entity_type_id: "node" }`
+*   **Value**: This outputs the connections between content bundles, mapping the outgoing reference fields (e.g., an article pointing to an author or an image media entity). You will see exactly how information flows between entity types.
 
-**Produce an "Editorial Architecture Review" for each tool before moving to the next.**
+### Step 5: Uncovering Content Presentation Layouts
+How are these content types presented to end-users and content editors? Drupal manages this via Display Modes (View Modes and Form Modes).
+*   **Tool**: `inspect_display_modes` `{ entity_type_id: "node" }`
+*   **Value**: You'll discover all configured form entry modes (e.g., default, registration) and view modes (e.g., teaser, full, search_result) that control how this content type is rendered in different contexts.
+
+### Step 6: Auditing Governance, Translations, and Publishing Workflows
+Finally, examine the editorial governance: how content history is tracked (revisioning), how global audiences are served (translation), and how content transitions from draft to published (moderation).
+*   **Tools**:
+    *   `inspect_revisioning` `{ entity_type_id: "node" }`: Checks whether node revisions are tracked, helping you understand revision history capabilities.
+    *   `inspect_translation` `{ entity_type_id: "node" }`: Discovers multilingual configurations and identifies if translation is enabled.
+    *   `inspect_moderation` `{ entity_type_id: "node", bundle: "article" }`: Lists active moderation workflows, all available states (e.g., Draft, In Review, Published), and valid state transitions.
+*   **Value**: You'll gain a complete understanding of the content's life-cycle policies, tracking mechanisms, localization readiness, and editorial team workflows.
+
 

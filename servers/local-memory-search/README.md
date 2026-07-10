@@ -228,36 +228,193 @@ The frozen contract version is **1.0** (`server.manifest.json` →
 `contract_frozen`). Tool names, required params, and the envelope shape must not
 change without a version bump.
 
-## 🧪 AI Agent Verification & Stress Test
+## 🎬 Exploratory Demo Scenario
 
-If you are an AI agent tasked with verifying this server, follow this protocol
-strictly:
+Follow this step-by-step developer journey to explore the retrieval, code-navigation, call-graph analysis, and system diagnostics features of the Local Memory Search server. This demo showcases how to discover patterns, inspect code structure, and assemble contextual bundles for LLMs.
 
-### 🎯 Objective
+### 1. Verification of System Readiness and Index Status
 
-Confirm hybrid retrieval quality, graceful degradation, and per-project isolation.
+Before you start querying the codebase, let's verify that the local search server is ready and examine the metadata of your indexed project.
 
-### 🛠 Sequential Testing Protocol
+- **Tool:** `health_check`
+  - **Parameters:**
+    ```json
+    {
+      "project_path": "/absolute/path/to/your-project",
+      "verbose": true
+    }
+    ```
+  - **Insight:** You will receive a breakdown of system readiness, including status checks for LanceDB, the embedding models, and version constraints.
 
-Execute in order after the indexer has completed at least one run:
+- **Tool:** `index_status`
+  - **Parameters:**
+    ```json
+    {
+      "project_path": "/absolute/path/to/your-project"
+    }
+    ```
+  - **Insight:** This tool returns the volume of indexed code chunks, file counts, and indexing freshness, so you know exactly what is available for retrieval.
 
-```
-health_check → index_status → search_keyword → search_semantic → search_hybrid
-  → retrieve_context_pack → read_chunk_neighbors → explain_match → doctor_index
-```
+---
 
-For each tool confirm:
+### 2. Exploring Code with Queries
 
-- Summary-first bounded output
-- Isolation to the requested `project_path`
-- Deterministic ordering on repeat queries
-- Degraded subsystems surface a `warnings[]` entry rather than a hard error
+Now, let's search the codebase using different strategies to find relevant sections.
 
-### 📝 Evaluation Criteria
+- **Tool:** `search_keyword`
+  - **Parameters:**
+    ```json
+    {
+      "project_path": "/absolute/path/to/your-project",
+      "query": "initializeDatabase"
+    }
+    ```
+  - **Insight:** This performs a pure keyword search across the codebase using Full-Text Search (FTS). It is ideal for finding exact identifiers or function names.
 
-- **Relevance**: Do top hits match the query intent?
-- **Degradation**: With Ollama stopped, does `search_hybrid` still return
-  keyword results with a warning?
-- **Context packs**: Does `retrieve_context_pack` stay within the char budget?
+- **Tool:** `search_semantic`
+  - **Parameters:**
+    ```json
+    {
+      "project_path": "/absolute/path/to/your-project",
+      "query": "how do we handle database connections and errors?"
+    }
+    ```
+  - **Insight:** This performs a vector-based semantic search. It captures conceptual intent, finding code blocks that relate to the topic even if they do not share the exact query keywords.
 
-**Produce a "Search Quality Audit" for each tool before finishing verification.**
+- **Tool:** `search_hybrid`
+  - **Parameters:**
+    ```json
+    {
+      "project_path": "/absolute/path/to/your-project",
+      "query": "database connection retry logic",
+      "alpha": 0.65
+    }
+    ```
+  - **Insight:** The hybrid search fuses vector search and BM25 keywords using Reciprocal Rank Fusion (RRF). It provides the best of both worlds by prioritizing exact matches while matching semantic concepts.
+
+- **Tool:** `explain_match`
+  - **Parameters:**
+    ```json
+    {
+      "project_path": "/absolute/path/to/your-project",
+      "query": "database connection retry logic",
+      "result_id": "CHUNKS_STABLE_ID"
+    }
+    ```
+  - **Insight:** If you want to understand how a particular chunk got ranked, this tool breaks down the final score, showing the exact contributions from the vector match, FTS score, identifier boost, and recency boost.
+
+---
+
+### 3. Navigating and Deep-Diving into Code Chunks
+
+Once you find a promising chunk, you can navigate surrounding code and search for structurally similar elements.
+
+- **Tool:** `get_chunk`
+  - **Parameters:**
+    ```json
+    {
+      "project_path": "/absolute/path/to/your-project",
+      "chunk_id": "CHUNKS_STABLE_ID"
+    }
+    ```
+  - **Insight:** Retrieves a single code chunk in its entirety, bypassing length limits applied to standard search results.
+
+- **Tool:** `read_chunk_neighbors`
+  - **Parameters:**
+    ```json
+    {
+      "project_path": "/absolute/path/to/your-project",
+      "chunk_id": "CHUNKS_STABLE_ID",
+      "before": 2,
+      "after": 2
+    }
+    ```
+  - **Insight:** Fetches neighboring chunks within the source file, allowing you to reconstruct the context before and after the matched code.
+
+- **Tool:** `search_similar`
+  - **Parameters:**
+    ```json
+    {
+      "project_path": "/absolute/path/to/your-project",
+      "file_path": "src/database/connection.ts",
+      "function_name": "connect"
+    }
+    ```
+  - **Insight:** Finds other chunks in the project that are structurally or semantically similar to this seed function, letting you discover patterns or duplicate logic elsewhere.
+
+---
+
+### 4. Mapping Call Graphs and Dependency Relations
+
+Let's understand how different files and symbols interact by exploring the project's dependency structure and call flows.
+
+- **Tool:** `get_import_graph`
+  - **Parameters:**
+    ```json
+    {
+      "project_path": "/absolute/path/to/your-project"
+    }
+    ```
+  - **Insight:** Generates the project-wide import/dependency graph (or filters to a specific file), highlighting code-level relationships across the project.
+
+- **Tool:** `find_callers`
+  - **Parameters:**
+    ```json
+    {
+      "project_path": "/absolute/path/to/your-project",
+      "symbol_name": "connect",
+      "depth": 2
+    }
+    ```
+  - **Insight:** Traces which functions or methods call the target symbol up to a specified depth, helping you trace usage patterns.
+
+- **Tool:** `find_callees`
+  - **Parameters:**
+    ```json
+    {
+      "project_path": "/absolute/path/to/your-project",
+      "symbol_name": "connect",
+      "depth": 2
+    }
+    ```
+  - **Insight:** Traces the symbols that the target function calls, giving you an immediate view of its downstream dependencies.
+
+- **Tool:** `trace_path`
+  - **Parameters:**
+    ```json
+    {
+      "project_path": "/absolute/path/to/your-project",
+      "source_symbol": "main",
+      "target_symbol": "connect"
+    }
+    ```
+  - **Insight:** Attempts to find a direct call path from `source_symbol` to `target_symbol`, tracing a call chain across the code graph.
+
+---
+
+### 5. Assembling Context Packs and Validating Index Health
+
+When you are ready to construct a prompt for an LLM or want to verify the consistency of the database, use these advanced tools.
+
+- **Tool:** `retrieve_context_pack`
+  - **Parameters:**
+    ```json
+    {
+      "project_path": "/absolute/path/to/your-project",
+      "query": "how do we handle database connections and errors?",
+      "max_chars": 12000,
+      "include_neighbors": true,
+      "rerank": true
+    }
+    ```
+  - **Insight:** Packs relevant snippets, expands them with neighboring lines, re-ranks them using local LLM power, and structures them into a single token-budgeted prompt context block.
+
+- **Tool:** `doctor_index`
+  - **Parameters:**
+    ```json
+    {
+      "project_path": "/absolute/path/to/your-project"
+    }
+    ```
+  - **Insight:** Validates the search index, check-pointing consistency between SQLite database records, LanceDB vector storage, and FTS indexing, providing diagnostic suggestions if any anomalies are found.
+

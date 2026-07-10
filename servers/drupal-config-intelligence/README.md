@@ -52,25 +52,65 @@ Point your client to `dist/index.js`. It will **automatically detect** the Drupa
 }
 ```
 
-## 🧪 AI Agent Verification & Stress Test
+## 🎬 Interactive Demonstration Scenario
 
-If you are an AI agent tasked with verifying this server, follow this protocol strictly:
+Follow this exploratory scenario to discover how the server helps you understand, audit, and safely deploy Drupal configuration changes.
 
-### 🎯 Objective
-Validate the configuration drift detection and deployment risk analysis intelligence of the config server.
+### 🗺️ The Explorer's Journey: Assessing a Drupal Site's Configuration State
 
-### 🛠 Sequential Testing Protocol
-Audit one tool at a time for maximum fidelity.
+Imagine you are a developer onboarding a Drupal project. Before preparing the next deployment, you want to inspect the configuration state, identify local overrides, check dependencies, and verify deployment safety.
 
-1. **`detect_config_drift`**: Run this first. Uses Drupal's `StorageComparer` API (not the `drush cst` CLI). If drift is found, verify it against actual manual changes. If `drift_count` is `null`, Drush bootstrap failed — check the `warning` field.
-2. **`diff_active_vs_sync`**: Select a changed config object and evaluate the diff quality. Check `method` in the response — `filesystem_fallback` means active storage was unavailable and only sync was readable.
-3. **`trace_config_dependencies`**: Pick a complex config (e.g. a View or a Field) and verify the dependency graph accurately lists modules and other config. Check `method` — `filesystem_fallback` means Drush failed and results came from sync YAML only.
-4. **`summarize_deployment_risk`**: Review the narrative. Check `blockers[]` for Drush failures and `suggested_checks[]` for environment-specific follow-ups.
+#### Step 1: Scanning for Local Configuration Changes
+Start by checking if any configuration has modified in the active database but hasn't been exported to code yet.
+* **Tool**: `detect_config_drift`
+* **Action**: Run `detect_config_drift` (optionally filtering by a prefix like `views.view.`).
+* **Discovery**: You get a quick count of modified configurations and a list of specific items that are out of sync.
 
-### 📝 Evaluation Criteria
-For each tool:
-- **Risk Precision**: Does the tool accurately identify "dangerous" config changes?
-- **Relationship Integrity**: Are dependency relationships correctly resolved across active and sync storages?
-- **Fallback Transparency**: Does the tool clearly indicate when it fell back from Drush to filesystem-only mode?
+#### Step 2: Peeking Into a Drifted Config Object
+Now that you know which files are out of sync, inspect the raw structure of one of those items (e.g., `system.site`).
+* **Tool**: `inspect_config_object`
+* **Action**: Run `inspect_config_object` with `config_name: "system.site"` and `source: "both"`.
+* **Discovery**: Compare the active configuration structure side-by-side with the sync YAML file representation to inspect their actual properties.
 
-**Submit a "Configuration Lifecycle Audit" for each tool before moving to the next.**
+#### Step 3: Examining the Detailed Differences
+To get a precise line-by-line understanding of what has changed in this configuration, generate a patch.
+* **Tool**: `diff_active_vs_sync`
+* **Action**: Run `diff_active_vs_sync` with `config_name: "system.site"` and `include_patch: true`.
+* **Discovery**: View the exact lines added or removed, see a calculated risk level for the modification, and learn which keys changed.
+
+#### Step 4: Finding the Origin and Provider
+Where did this configuration originally come from? Is it owned by Drupal core, a custom module, a profile, or was it imported by a recipe?
+* **Tool**: `find_config_owner`
+* **Action**: Run `find_config_owner` with `config_name: "system.site"`.
+* **Discovery**: Identify the owner type, module/recipe name, and installation path with a heuristic confidence score.
+
+#### Step 5: Tracing the Config Dependency Web
+Before making edits, check what other configurations depend on this item, and what this item requires to function.
+* **Tool**: `trace_config_dependencies`
+* **Action**: Run `trace_config_dependencies` with `config_name: "system.site"` and `direction: "both"`.
+* **Discovery**: Traverse the configuration dependency graph to see requirements and dependents to avoid breaking related functionality.
+
+#### Step 6: Analyzing Individual Deployment Impact
+You want to evaluate the potential impact of deploying these changes. What domains are affected, and are there any required post-deployment steps?
+* **Tool**: `analyze_config_impact`
+* **Action**: Run `analyze_config_impact` with `config_name: "system.site"`.
+* **Discovery**: Get an estimated risk classification, affected domains (e.g., theme, security, views), and recommended manual checks or follow-ups.
+
+#### Step 7: Inspecting Multi-Environment Configuration Splits
+Large sites often split configurations based on environments (e.g., enabling development modules only in local development).
+* **Tool**: `inspect_config_split_state`
+* **Action**: Run `inspect_config_split_state` without arguments (or specify a split name).
+* **Discovery**: See which configuration splits are active, their folder paths, and the lists of configurations they conditionally complete or partially exclude.
+
+#### Step 8: Auditing Applied Drupal Recipes
+If the site leverages Drupal Recipes, inspect whether the configuration managed by those recipes is intact or has diverged.
+* **Tool**: `inspect_recipe_state`
+* **Action**: Run `inspect_recipe_state` to retrieve the recipe configuration health.
+* **Discovery**: See how many config files are managed by each recipe, which ones are missing, and which ones have changed relative to their original definitions.
+
+#### Step 9: Creating a Global Deployment Safety Summary
+Before running the deployment, aggregate all configuration drift, active environment splits, and risks into a single unified report.
+* **Tool**: `summarize_deployment_risk`
+* **Action**: Run `summarize_deployment_risk`.
+* **Discovery**: Review the generated deployment safety narrative, highlighting critical blockers, high-risk items, and a checklist of recommended checks to perform before pushing.
+

@@ -57,24 +57,59 @@ To use this server in your MCP client (e.g., Claude Desktop), add the following 
 
 *Note: Replace the path with the actual absolute path to your `dist/index.js`.*
 
-## 🧪 AI Agent Verification & Stress Test
+## 🎬 Guided Exploration & Demonstration Scenario
 
-If you are an AI agent tasked with verifying this server, follow this protocol strictly:
+Follow this exploratory developer journey to experience how the MCP server demystifies Drupal's rendering and theming systems, layer by layer, using all available tools.
 
-### 🎯 Objective
-Validate the high-signal "frontend lens" capabilities and noise-reduction logic of the render introspection server.
+### Phase 1: Understanding Theme Architecture and Layouts
 
-### 🛠 Sequential Testing Protocol
-Thoroughly verify one tool before switching context.
+Start by exploring the active theme, its regions, and how content blocks are arranged.
 
-1. **`summarize_render_path`**: Start here. Pick a block or node and verify the "End-to-End Story". Does it connect to the template correctly?
-2. **`inspect_render_array`**: Test with `max_depth=2` and then `max_depth=5`. Verify that `#cache` and `#attached` are absent from the `render_array_preview` — this stripping is intentional and expected.
-3. **`find_preprocess_chain`**: Verify it lists functions in the actual execution order.
-4. **`inspect_sdc_components`**: Test without `component_id` to confirm the summary list includes `has_schema` boolean. Then test with a specific `component_id` to verify the raw plugin definition is returned.
+1. **Discover Active Theme Settings**
+   Call `inspect_theme_state` to query the current theme setup.
+   - *What you discover:* The active theme, the admin theme, the base theme inheritance chain, and the list of layout regions.
 
-### 📝 Evaluation Criteria
-For each tool:
-- **Token Efficiency**: This is the most critical server for token saving. Check if the output projection is aggressive enough.
-- **Ease of Use**: Does the "Render Path" narrative help you understand the theming logic without further digging?
+2. **Map Block Placements**
+   Call `inspect_blocks_and_regions` to list active blocks and see where they reside.
+   - *What you discover:* A clean list of blocks showing their IDs, labels, weight, status, and target region. Try filtering by a specific region (e.g., `sidebar_first`) to see how content is structured.
 
-**Submit a "Theming Verification Report" focusing on projection quality.**
+3. **Explore Single Directory Components (SDC)**
+   Call `inspect_sdc_components` (without arguments) to list the modern components available.
+   - *What you discover:* A list of SDC components, their extensions, file paths, and whether they define a JSON schema (`has_schema`).
+   - *Go deeper:* Choose a specific `component_id` (e.g., `my_theme:hero`) and call the tool again with the ID to retrieve its full definition, including properties, slots, and metadata.
+
+---
+
+### Phase 2: Introspecting the Render Pipeline
+
+Investigate how Drupal builds render output and attaches front-end assets.
+
+4. **Get a High-Level Render Summary**
+   Call `summarize_render_path` for a specific theme hook (e.g., `node` or `block`).
+   - *What you discover:* A fast, consolidated summary mapping the theme hook to its template path, preprocess function count, and attached libraries.
+
+5. **Analyze the Cleaned Render Array**
+   Call `inspect_render_array` with a target render element or block. Experiment with `max_depth=2` and then `max_depth=5`.
+   - *What you discover:* A noise-filtered view of the render structure. Notice how `#cache` and `#attached` arrays are automatically projected out, allowing you to focus on raw component data and properties.
+
+6. **Examine Asset Attachments**
+   Call `inspect_library_attachments` for the same render element.
+   - *What you discover:* The specific CSS/JS libraries attached to the page and any variables injected via `drupalSettings` to power interactive elements.
+
+---
+
+### Phase 3: Tracing and Customizing the Template Pipeline
+
+Track how variables flow and how templates are selected for customization.
+
+7. **Find Template Overriding Opportunities**
+   Call `inspect_template_suggestions` for a given hook (e.g., `node__article`).
+   - *What you discover:* The exact list of template candidate names, ordered from lowest to highest priority (where the last item overrides the others).
+
+8. **Locate the Selected Template**
+   Call `trace_template_resolution` to find which template Drupal actually loads for the hook.
+   - *What you discover:* The filename, its absolute path in the codebase, the theme registry properties, and the preprocess chain.
+
+9. **Debug the Preprocess Function Chain**
+   Call `find_preprocess_chain` for the hook.
+   - *What you discover:* The exact sequence of hook and preprocess functions executed to prepare variables, showing the chronological pipeline that shapes the final output.

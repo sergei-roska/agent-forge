@@ -215,26 +215,124 @@ To use this server in your MCP client (e.g., Claude Desktop), add the following 
 
 *Note: Replace the path with the actual absolute path to your `dist/index.js`.*
 
-## 🧪 AI Agent Verification & Stress Test
+## 🎬 Exploratory Demo Scenario
 
-If you are an AI agent tasked with verifying this server, follow this protocol strictly:
+Follow this step-by-step developer journey to explore the visual observation, structural analysis, layout debugging, and screenshot capture capabilities of the Web Observe & Capture server. This demo showcases how to inspect page hierarchy, analyze element positions, and capture high-fidelity visual context for front-end understanding.
 
-### 🎯 Objective
-Confirm browser stability, visual accuracy, and artifact management for frontend observation.
+### 1. Initiating the Interactive Browser Session
 
-### 🛠 Sequential Testing Protocol
-Execute step-by-step verification. Manage sessions carefully.
+To begin exploring, establish a persistent browser context for your target web page. This session preserves page state, cookies, and login configurations across subsequent requests.
 
-1. **`open_page_session`**: Verify session creation and viewport stability.
-2. **`capture_full_page_screenshot`**: Verify the image is stored in the `artifacts/` folder and the response contains the correct path.
-3. **`capture_region_screenshot`**: Test by both coordinates and CSS selector. Is the cropping accurate?
-4. **`inspect_dom_excerpt`**: Test the truncation. Verify that `truncated=true` when content exceeds `max_chars`.
-5. **`inspect_layout`**: Pick two overlapping or adjacent elements and verify their bounding boxes and styles.
+> [!TIP]
+> Prior to opening the session, the agent should dynamically inspect the local workspace to extract the site URL (e.g., by querying local dev configurations like `lando info` or `ddev describe` if available). Fall back to `https://example.com` if no local URL can be determined.
 
-### 📝 Evaluation Criteria
-For each tool:
-- **Stability**: Does the browser crash on heavy pages?
-- **Artifact Management**: Are files cleaned up after `close_page_session` (if implemented/requested)?
-- **Token Usage**: Is the `capture_page_snapshot` tool descriptive enough without dumping raw HTML?
+- **Tool:** `open_page_session`
+  - **Parameters:**
+    ```json
+    {
+      "url": "https://my-local-project.ddev.site", // dynamically determined local URL, fallback: "https://example.com"
+      "wait_until": "networkidle",
+      "width": 1280,
+      "height": 720
+    }
+    ```
+  - **Insight:** This tool launches a browser instance, navigates to the URL, and yields a `session_id` to link all upcoming interactions to the same session.
 
-**Create a "Visual & DOM Audit Log" for each tool before closing the session.**
+---
+
+### 2. Inspecting the Page's Structural Outline
+
+Before requesting full screenshots or parsing large chunks of HTML, retrieve a lightweight outline of the page's structure. This saves token budget and clarifies layout organization.
+
+- **Tool:** `capture_page_snapshot`
+  - **Parameters:**
+    ```json
+    {
+      "session_id": "YOUR_SESSION_UUID",
+      "max_nodes": 50
+    }
+    ```
+  - **Insight:** You receive a structured hierarchy of critical DOM nodes including tag names, IDs, CSS classes, and preview text, offering a quick understanding of the page layout.
+
+---
+
+### 3. Deep-Diving Into Target HTML Excerpts
+
+When you locate a specific element (like a header, card, or dashboard section) in the outline, fetch its precise inner or outer HTML block.
+
+- **Tool:** `inspect_dom_excerpt`
+  - **Parameters:**
+    ```json
+    {
+      "session_id": "YOUR_SESSION_UUID",
+      "selector": "main section.features",
+      "max_chars": 1500,
+      "include_outer_html": true
+    }
+    ```
+  - **Insight:** This tool retrieves the specific node's HTML content. If the content exceeds your character budget, it truncates gracefully with a `truncated: true` flag.
+
+---
+
+### 4. Auditing Layout Styles and Coordinates
+
+If you are inspecting layout alignment, margins, or element overlays, retrieve the computed layout details and visibility properties.
+
+- **Tool:** `inspect_layout`
+  - **Parameters:**
+    ```json
+    {
+      "session_id": "YOUR_SESSION_UUID",
+      "selectors": ["header.navigation", "main section.features"]
+    }
+    ```
+  - **Insight:** This tool returns the exact coordinates, width, height, and CSS alignment properties (visibility, display, overflow, opacity, z-index) for the queried selectors.
+
+---
+
+### 5. Capturing Visual Screenshots
+
+Now let's capture visual images of the page. You can capture the active viewport, the entire scrollable document, or crop specifically to a given element.
+
+- **Tool:** `capture_viewport_screenshot`
+  - **Parameters:**
+    ```json
+    {
+      "session_id": "YOUR_SESSION_UUID"
+    }
+    ```
+  - **Insight:** Captures exactly what is visible in the current browser viewport.
+
+- **Tool:** `capture_full_page_screenshot`
+  - **Parameters:**
+    ```json
+    {
+      "session_id": "YOUR_SESSION_UUID"
+    }
+    ```
+  - **Insight:** Automatically scrolls and captures the complete document from top to bottom, returning the filesystem path to the saved image.
+
+- **Tool:** `capture_region_screenshot`
+  - **Parameters:**
+    ```json
+    {
+      "session_id": "YOUR_SESSION_UUID",
+      "selector": "main section.features"
+    }
+    ```
+  - **Insight:** Isolates and crops the screenshot exactly to the bounding box of the specified CSS selector (or coordinates), avoiding surrounding visual clutter.
+
+---
+
+### 6. Closing the Browser Session
+
+When your journey is complete, clean up and release the browser resources.
+
+- **Tool:** `close_page_session`
+  - **Parameters:**
+    ```json
+    {
+      "session_id": "YOUR_SESSION_UUID"
+    }
+    ```
+  - **Insight:** Shuts down the browser context, ensuring system memory and resources are immediately reclaimed.

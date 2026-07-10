@@ -55,30 +55,7 @@ The server **automatically detects** your Drupal project root by looking upward 
 }
 ```
 
-## 🧪 AI Agent Verification & Stress Test
-
-If you are an AI agent tasked with verifying this server, follow this protocol strictly:
-
-### 🎯 Objective
-Validate the inventory discovery accuracy and token efficiency of the core runtime server.
-
-### 🛠 Sequential Testing Protocol
-One tool at a time. Do not skip steps.
-
-1. **`inspect_entity_types`**: Run with default and then with field projection. Verify it correctly identifies core vs custom entities.
-2. **`inspect_fields`**: Pick a complex node bundle (e.g. 'Article') and verify that it lists all base and config fields.
-3. **`inspect_services`**: Search for a known service (e.g. 'router.no_access_checks') and verify its class mapping.
-4. **`inspect_routes`**: Pick a path (e.g. /node/1) and verify the controller and permission metadata.
-
-### 📝 Evaluation Criteria
-For each tool:
-- **Accuracy**: Does the data match the live Drupal state?
-- **Projection**: Is the noise stripping aggressive enough for complex objects like `entity_types`?
-
-**Provide a "Runtime Inventory Audit" before moving to the next server.**
-```
-
-## 🔋 Environment Variables
+### 3. Environment Variables
 
 - `DRUPAL_ROOT_DIR`: (Optional) Absolute path to your Drupal project. If omitted, the server will try to auto-detect the root from the current working directory by looking for `composer.json` and a `web/` or `core/` folder.
 - `DRUSH_OPTIONS_URI` / `DRUSH_URI`: (Optional) Passes `--uri=<value>` to Drush for multisite or specific environment targeting.
@@ -86,3 +63,44 @@ For each tool:
 ## 🛡️ Security
 
 This server is designed for **local development**. It uses `drush php-script` to execute hardcoded, curated PHP snippets. Ensure you only use it in environments where you trust the local Drush access.
+
+## 🧭 Interactive Developer Journey & Feature Demo
+
+Explore this step-by-step scenario to discover how a developer can map, query, and audit a live Drupal application's runtime state using MCP tools. This walkthrough demonstrates the zero-configuration setup, token-efficient responses, and smart object projection capabilities of the server.
+
+### Phase 1: High-Level Environment Discovery
+
+Start by getting a bird's-eye view of your Drupal application's general environment and configuration.
+
+1. **`search_runtime_objects`**: Begin with a broad search query (e.g., `query: "node"`) to discover which entities or modules match this term. This acts as a starting point to see what's active in your database and codebase.
+2. **`inspect_modules`**: Retrieve the list of all enabled modules on the site. You can use pagination (`limit` and `offset`) or a `query` filter to find specific modules (e.g., `query: "views"`).
+3. **`inspect_themes`**: List the installed themes to identify which theme is active as the default frontend interface and which is used for administration.
+
+### Phase 2: Mapping the Content Model (Data Structure)
+
+Dive deep into how the site's data is structured and stored at runtime.
+
+4. **`inspect_entity_types`**: List the available entity types to understand the core database storage and custom definitions. Notice the smart projection that strips out circular references and heavy service metadata, keeping the output clean and token-efficient.
+5. **`inspect_bundles`**: Select a main content entity type (such as `node`) and inspect its configured bundles (like `article` or `page`) to understand the content types defined on the site.
+6. **`inspect_fields`**: Pick a bundle (e.g., `article`) and retrieve its field definitions to see field types, labels, required state, and translatability properties.
+
+### Phase 3: Inspecting Navigation and Taxonomy
+
+Understand how content is classified and structured for site visitors.
+
+7. **`inspect_vocabularies`**: List taxonomy vocabularies (e.g., tags, categories) to see how taxonomy is organized across the site.
+8. **`inspect_menus`**: List all menu configuration entities to map out the site's navigation structures and main menus.
+
+### Phase 4: Under the Hood - Dependency Injection & Extensibility
+
+Inspect Drupal's service container and plugin systems directly from your client.
+
+9. **`inspect_services`**: Query the Dependency Injection (DI) container for a specific service ID (e.g., `query: "router.no_access_checks"`) to retrieve its fully qualified class mapping.
+10. **`inspect_plugins`**: Search for registered plugins of a specific type (e.g., `plugin_type: "block"` or `plugin_type: "filter"`) to see active plugins, their classes, and labels.
+
+### Phase 5: Routing and Security Policies
+
+Trace how requests are mapped to controllers and how access is controlled.
+
+11. **`inspect_routes`**: Search the Symfony routing table for paths (e.g., `query: "/node/"`) to locate corresponding controllers and their routing parameters.
+12. **`inspect_permissions`**: List all defined system permissions (e.g., machine names and human-readable titles) to explore the access control options available to configure user roles.

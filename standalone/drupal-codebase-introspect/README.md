@@ -55,33 +55,42 @@ To use this server in your MCP client (e.g., Claude Desktop), add the following 
 
 *Note: Replace the path with the actual absolute path to your `dist/index.js`.*
 
-## 🧪 AI Agent Verification & Stress Test
+## 🗺 Interactive Codebase Exploration (Capabilities Demo)
 
-If you are an AI agent tasked with verifying this server, follow this protocol strictly:
+This interactive scenario demonstrates how to use the server's tools to explore, understand, and navigate a Drupal codebase. Follow this step-by-step walkthrough to discover the power of semantic introspection, simulating how a developer onboarded to a new project builds a complete mental map of its architecture.
 
-### 🎯 Objective
-Validate the accuracy, performance, and token efficiency of each tool in a live Drupal environment.
+### 🧭 Phase 1: Codebase Orientation (Getting the Big Picture)
+To start your journey, get a high-level overview of the project's complexity and identify the custom extensions in play.
+1. **`summarize_code_inventory`**: Run this first to retrieve a structured summary of custom modules, services, routes, hooks, and plugins. This establishes the scope of the project.
+2. **`list_custom_modules`**: Locate all custom modules installed in the environment and see where their files are located. Pick a custom module from the list to focus on in the next steps.
 
-### 🛠 Sequential Testing Protocol
-Do **NOT** test all tools at once. Focus on one tool at a time, complete its verification, and then move to the next.
+### 🎨 Phase 2: Theme & Render Layers
+Examine how the codebase alters output and hooks into the page lifecycle.
+3. **`find_hook_implementations`**: Find where hooks (such as `hook_node_view` or `hook_form_alter`) are implemented. Select a hook and view the exact files and lines where the custom behaviors are registered.
+4. **`find_preprocess_functions`**: Locate theme preprocess functions that manipulate variables before templates render (e.g., functions preprocessing pages, nodes, or paragraphs).
 
-1. **`list_custom_modules`**: Run this first to identify the "playing field". Select 2-3 custom modules for further testing.
-2. **`find_hook_implementations`**: Pick a common hook (e.g., `hook_node_view`) and verify it finds correct files/lines.
-3. **`trace_runtime_to_code`**: This is the core "Intelligent" tool. Test it with a service ID and a Route name to ensure it bridges symbols to files correctly.
-4. **`summarize_code_inventory`**: Evaluate the narrative quality. Does it give a helpful overview or just dry lists?
+### ⚙️ Phase 3: Services, Events & Plugins
+Dive deeper into the Symfony container and Drupal's extensibility patterns.
+5. **`find_service_definitions`**: Map service IDs (e.g., custom services or core services like `current_user`) back to their class definitions and file paths.
+6. **`find_event_subscribers`**: Trace which PHP classes are listening to specific events (such as configuration saves or kernel request events).
+7. **`find_plugin_classes`**: Discover plugin classes of a specific plugin type (e.g., blocks, migrate source plugins, or field formatters) to understand modular extensions.
 
-### 📝 Evaluation Criteria
-For each tool, provide feedback on:
-- **Accuracy**: Did it find the correct file/line/symbol?
-- **Token Noise**: Is the output too verbose? Could it be more projected?
-- **Error Handling**: What happens if you pass a non-existent hook or service?
-- **Speed**: Does the Drush execution feel responsive?
+### 🖥 Phase 4: Routing, Forms & Console Commands
+Understand how users and administrators interact with the codebase.
+8. **`find_form_classes`**: Resolve a Form ID (e.g., configuration forms or custom entity forms) to its corresponding PHP class to inspect its submission and validation logic.
+9. **`find_controller_handlers`**: Map Drupal route names to their controller classes, methods, and line numbers to see what code executes when a URL is requested.
+10. **`find_drush_commands`**: Identify where custom console commands are defined and trace them directly to their implementation classes.
 
-**Report your findings as a "Tool Verification Log" before proceeding to the next server.**
+### 🚀 Phase 5: Unified Symbolic Resolution
+Experience the ultimate helper that unifies runtime inspections.
+11. **`trace_runtime_to_code`**: Pass any arbitrary symbol (a route name, hook name, service ID, or form ID) to this intelligent tool. It automatically determines the symbol type and points you straight to the exact code definition.
 
-### Automatic Path Discovery
+---
 
-The server automatically identifies the Drupal root by looking for:
+## 🔍 Drupal Root Discovery
+
+The server automatically identifies the Drupal root directory by looking for:
 1. `web/core`
 2. `docroot/core`
 3. `./core` + `./index.php` (Root-based install)
+
