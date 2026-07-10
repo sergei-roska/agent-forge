@@ -1,6 +1,6 @@
 {
   "name": "@drupal-forge/server-codebase-introspect",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "MCP server for Drupal codebase introspection and mapping (Spec 04)",
   "type": "module",
@@ -15,7 +15,6 @@
   "dependencies": {
     "@agent-forge/filesystem-index": "workspace:*",
     "@agent-forge/mcp-core": "workspace:*",
-    "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "latest",
     "js-yaml": "^4.2.0",
     "zod": "latest"
@@ -23,6 +22,6 @@
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/node": "latest",
-    "typescript": "latest"
+    "typescript": "^6.0.3"
   }
 }

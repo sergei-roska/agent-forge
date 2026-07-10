@@ -1,6 +1,6 @@
 {
   "name": "@drupal-forge/server-config-intelligence",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "MCP server for Drupal configuration lifecycle (Spec 03)",
   "type": "module",
@@ -16,12 +16,11 @@
     "@agent-forge/drupal-api-client": "workspace:*",
     "@agent-forge/filesystem-index": "workspace:*",
     "@agent-forge/mcp-core": "workspace:*",
-    "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "latest",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "latest",
-    "typescript": "latest"
+    "typescript": "^6.0.3"
   }
 }

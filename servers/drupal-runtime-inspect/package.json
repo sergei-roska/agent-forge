@@ -1,6 +1,6 @@
 {
   "name": "@drupal-forge/server-runtime-inspect",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "build": "tsc",
@@ -9,7 +9,6 @@
   "dependencies": {
     "@agent-forge/drupal-api-client": "workspace:*",
     "@agent-forge/mcp-core": "workspace:*",
-    "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.4.3"
   },

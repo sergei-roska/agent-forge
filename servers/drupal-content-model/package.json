@@ -1,6 +1,6 @@
 {
   "name": "@drupal-forge/server-content-model",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Drupal Content Model MCP Server",
   "type": "module",
   "main": "dist/index.js",
@@ -11,7 +11,6 @@
   "dependencies": {
     "@agent-forge/drupal-api-client": "workspace:*",
     "@agent-forge/mcp-core": "workspace:*",
-    "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "latest",
     "zod": "^4.4.3"
   },
