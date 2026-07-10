@@ -25,13 +25,16 @@ process restarts via a SQLite checkpoint queue.
 - **Graceful pause** — `pause_indexing` finishes the current embedding batch,
   checkpoints state, and allows resumption via `start_indexing`.
 
-## 🧰 Available Tools (3)
+## 🧰 Available Tools (6)
 
 | Tool | Purpose |
 |---|---|
 | `start_indexing` | Start a discovery and/or embedding run for a project. Returns `run_id` immediately. |
 | `get_indexing_status` | Poll progress, ETA, chunk counts, and warnings for a run. |
-| `pause_indexing` | Gracefully pause Phase 2 embedding; resume later with `start_indexing`. |
+| `pause_indexing` | Gracefully pause Phase 2 embedding; checkpoint in SQLite. |
+| `resume_indexing` | Resume paused Phase 2 embedding from a SQLite checkpoint. |
+| `doctor_index` | Diagnose SQLite/LanceDB/FTS/fingerprint consistency and optionally repair safe issues. |
+| `delete_project_index` | Delete all index data (SQLite + LanceDB) for a project. |
 
 ### `start_indexing`
 
@@ -39,21 +42,21 @@ process restarts via a SQLite checkpoint queue.
 |---|---|---|---|
 | `project_path` | string | *(required)* | Absolute path to the project root. |
 | `phases` | string[] | `["discovery","embedding"]` | Run `"discovery"` only, `"embedding"` only, or both. |
-| `force` | boolean | `false` | Re-index all files regardless of fingerprint. |
-| `include_globs` | string[] | — | Allowlist globs (e.g. `["src/**/*.ts"]`). |
-| `exclude_globs` | string[] | — | Additional exclusion globs. |
-| `max_file_size_kb` | integer | `512` | Skip files larger than this. |
-| `batch_size` | integer | `20` | Embedding batch size for Phase 2. |
+| `force` | boolean | `false` | Re-index all files; ignore change fingerprints. |
+| `include_globs` | string[] | — | Glob allowlist; index only matching paths (e.g. `["src/**/*.ts"]`). |
+| `exclude_globs` | string[] | — | Extra globs to exclude beyond built-in defaults. |
+| `max_file_size_kb` | integer | `512` | Skip files larger than this (KB). |
+| `batch_size` | integer | `20` | Phase 2 embedding batch size. |
 | `enrich` | boolean | `true` | Generate chunk summary + tags via LLM before embedding. |
-| `backend` | enum | `"auto"` | `"ollama"`, `"transformers_js"`, or `"auto"`. |
-| `priority` | enum | `"background"` | `"user_focus"`, `"recent"`, or `"background"`. |
+| `backend` | enum | `"auto"` | Embedding backend: `"ollama"`, `"transformers_js"`, or `"auto"`. |
+| `priority` | enum | `"background"` | Embedding queue priority: `"user_focus"`, `"recent"`, or `"background"`. |
 
 ### `get_indexing_status`
 
 | Parameter | Type | Description |
 |---|---|---|
-| `run_id` | string | Specific run to inspect. |
-| `project_path` | string | When `run_id` is omitted, returns the most recent run for this project. |
+| `run_id` | string | Specific `run_id` from `start_indexing`. |
+| `project_path` | string | With `run_id` omitted: latest run for this project path. |
 
 Provide at least one of `run_id` or `project_path`.
 
@@ -61,7 +64,27 @@ Provide at least one of `run_id` or `project_path`.
 
 | Parameter | Type | Description |
 |---|---|---|
-| `run_id` | string | *(required)* Run to pause. |
+| `run_id` | string | *(required)* `run_id` from `start_indexing`. |
+
+### `resume_indexing`
+
+| Parameter | Type | Description |
+|---|---|---|
+| `run_id` | string | *(required)* Paused `run_id` from `pause_indexing`. |
+| `project_path` | string | Absolute project root; required after server restart if run not in memory. |
+
+### `doctor_index`
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `project_path` | string | *(required)* | Absolute project root path. |
+| `auto_fix` | boolean | `false` | Auto-repair safe issues: schema drift, stale chunks, FTS, queue errors. |
+
+### `delete_project_index`
+
+| Parameter | Type | Description |
+|---|---|---|
+| `project_path` | string | *(required)* Absolute project root whose index to delete. |
 
 ## 🤖 Default Local Model Stack
 

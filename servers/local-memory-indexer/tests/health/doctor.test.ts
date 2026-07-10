@@ -23,19 +23,12 @@ describe('IndexerDoctor', () => {
   });
 
   it('auto-fixes bad schema_version in SQLite', async () => {
-    const chunks = new ChunksQueueRepo(db);
     const now = Date.now();
-    chunks.insertBatch([{
-      chunk_id: 'c1',
-      project_path: projectDir,
-      file_path: `${projectDir}/a.ts`,
-      raw_text: 'code',
-      embedding_status: 'embedded',
-      priority: 1,
-      created_at: now,
-      updated_at: now,
-      schema_version: 'unknown',
-    }]);
+    db.prepare(
+      `INSERT INTO chunks_queue
+        (chunk_id, project_path, file_path, raw_text, embedding_status, priority, created_at, updated_at, schema_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run('c1', projectDir, `${projectDir}/a.ts`, 'code', 'embedded', 1, now, now, 'unknown');
 
     const doctor = new IndexerDoctor(db);
     const result = await doctor.run(projectDir, true);
