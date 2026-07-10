@@ -26,8 +26,10 @@ const getRootDir = (args: any) => {
 export const renderTools: any[] = [
   {
     name: 'inspect_theme_state',
-    description: 'Get active theme, admin theme, base theme chain, regions. Use first for theme or layout context.',
-    inputSchema: {},
+    description: 'Get active theme, admin theme, base theme chain, region list and count. Use first for theme or layout context.',
+    inputSchema: {
+      project_root: z.string().optional().describe('Absolute path to the Drupal project root. Falls back to DRUPAL_ROOT_DIR / DRUPAL_ROOT env vars, then auto-detection from cwd.'),
+    },
     handler: async (args: any) => {
       const resolver = new RenderResolver(getRootDir(args));
       const data = await resolver.getThemeState();
@@ -45,9 +47,12 @@ export const renderTools: any[] = [
   },
   {
     name: 'inspect_template_suggestions',
-    description: 'List theme_suggestions for a hook in priority order (last wins). Use to see candidate templates before resolution.',
+    description: 'List theme_suggestions for a hook in priority order (last element wins). Use to see candidate templates before resolution. Supports node, block, and field hooks with automatic context setup.',
     inputSchema: {
-      theme_hook: z.string().describe('Theme hook machine name. Examples: node, block, container, field.'),
+      theme_hook: z.string().describe('Theme hook machine name. Examples: node, block, field.'),
+      view_mode: z.string().optional().describe('View mode machine name used for node context. Default: full. Ignored for non-node hooks.'),
+      route_name: z.string().optional().describe('Reserved for future use. Not yet applied to suggestion context.'),
+      project_root: z.string().optional().describe('Absolute path to the Drupal project root. Falls back to DRUPAL_ROOT_DIR / DRUPAL_ROOT env vars, then auto-detection from cwd.'),
     },
     handler: async (args: any) => {
       const resolver = new RenderResolver(getRootDir(args));
@@ -66,9 +71,10 @@ export const renderTools: any[] = [
   },
   {
     name: 'trace_template_resolution',
-    description: 'Get resolved template name, path, and registry entry for a theme hook. Use when wrong or missing template file.',
+    description: 'Get template name, template path, type, and preprocess functions from the theme registry for a theme hook. Returns the same registry entry as find_preprocess_chain — use when you need to pinpoint which template file is registered for a hook.',
     inputSchema: {
-      theme_hook: z.string().describe('Theme hook from #theme or registry. Examples: node, block, views_view.'),
+      theme_hook: z.string().describe('Theme hook from #theme key or theme registry. Examples: node, block, views_view.'),
+      project_root: z.string().optional().describe('Absolute path to the Drupal project root. Falls back to DRUPAL_ROOT_DIR / DRUPAL_ROOT env vars, then auto-detection from cwd.'),
     },
     handler: async (args: any) => {
       const resolver = new RenderResolver(getRootDir(args));
@@ -87,9 +93,10 @@ export const renderTools: any[] = [
   },
   {
     name: 'find_preprocess_chain',
-    description: 'List preprocess functions and template registry for a theme hook. Use to debug template variables or alter order.',
+    description: 'List all preprocess functions registered for a theme hook, along with the template name, template path, and hook type from the theme registry. Use to debug template variable availability or preprocess alter order.',
     inputSchema: {
-      theme_hook: z.string().describe('Theme hook machine name. Same target as trace_template_resolution.'),
+      theme_hook: z.string().describe('Theme hook machine name. Examples: node, block, views_view. Must exist in the active theme registry.'),
+      project_root: z.string().optional().describe('Absolute path to the Drupal project root. Falls back to DRUPAL_ROOT_DIR / DRUPAL_ROOT env vars, then auto-detection from cwd.'),
     },
     handler: async (args: any) => {
       const resolver = new RenderResolver(getRootDir(args));
@@ -108,12 +115,13 @@ export const renderTools: any[] = [
   },
   {
     name: 'inspect_render_array',
-    description: 'Build and preview node/block render array (#theme, keys, nested structure). Use to debug missing or extra elements.',
+    description: 'Build and preview the render array for a node or block entity. Returns a summary (#theme / #type, top-level keys) and a depth-limited preview. Noisy keys #cache and #attached are stripped from the preview to save tokens. Use to debug missing or extra render elements.',
     inputSchema: {
-      target_type: z.enum(['node', 'block']).describe('Entity type: node or block.'),
-      target_id: z.string().describe('Node nid as string, or block config id (e.g. claro_help).'),
-      view_mode: z.string().optional().describe('View mode machine_name. Node only. Default: full.'),
-      max_depth: z.number().optional().describe('Max nested array depth. Integer. Default 3.'),
+      target_type: z.enum(['node', 'block']).describe('Entity type to inspect: "node" or "block".'),
+      target_id: z.string().describe('Entity identifier. For node: numeric nid as string (e.g. "42"). For block: block config entity id (e.g. "claro_help").'),
+      view_mode: z.string().optional().describe('View mode machine name. Applies to node only. Default: full.'),
+      max_depth: z.number().int().optional().describe('Maximum nesting depth for the render array preview. Integer. Default: 3. Increase to 5 for deeper inspection.'),
+      project_root: z.string().optional().describe('Absolute path to the Drupal project root. Falls back to DRUPAL_ROOT_DIR / DRUPAL_ROOT env vars, then auto-detection from cwd.'),
     },
     handler: async (args: any) => {
        const resolver = new RenderResolver(getRootDir(args));
@@ -132,10 +140,11 @@ export const renderTools: any[] = [
   },
   {
     name: 'inspect_library_attachments',
-    description: 'List #attached libraries and drupalSettings keys for node/block render. Use for CSS/JS loading issues.',
+    description: 'List #attached library names and top-level drupalSettings keys for a node or block render. Use to diagnose missing CSS/JS or unexpected library loading.',
     inputSchema: {
-      target_type: z.enum(['node', 'block']).describe('Entity type: node or block.'),
-      target_id: z.string().describe('Node nid as string, or block config id.'),
+      target_type: z.enum(['node', 'block']).describe('Entity type to inspect: "node" or "block".'),
+      target_id: z.string().describe('Entity identifier. For node: numeric nid as string (e.g. "42"). For block: block config entity id (e.g. "claro_help").'),
+      project_root: z.string().optional().describe('Absolute path to the Drupal project root. Falls back to DRUPAL_ROOT_DIR / DRUPAL_ROOT env vars, then auto-detection from cwd.'),
     },
     handler: async (args: any) => {
        const resolver = new RenderResolver(getRootDir(args));
@@ -154,9 +163,10 @@ export const renderTools: any[] = [
   },
   {
     name: 'inspect_blocks_and_regions',
-    description: 'List blocks in active theme: id, region, weight, plugin, status. Use for layout and block placement.',
+    description: 'List all blocks placed in the default theme with their id, label, region, plugin_id, weight, and status. Optionally filter by a specific region. Use for layout debugging and block placement verification.',
     inputSchema: {
-      region: z.string().optional().describe('Region machine_name filter. Omit to return all regions.'),
+      region: z.string().optional().describe('Region machine name to filter by (e.g. "header", "content"). Omit to return blocks from all regions.'),
+      project_root: z.string().optional().describe('Absolute path to the Drupal project root. Falls back to DRUPAL_ROOT_DIR / DRUPAL_ROOT env vars, then auto-detection from cwd.'),
     },
     handler: async (args: any) => {
         const resolver = new RenderResolver(getRootDir(args));
@@ -175,9 +185,10 @@ export const renderTools: any[] = [
   },
   {
     name: 'inspect_sdc_components',
-    description: 'List or fetch Single Directory Component definitions (id, provider, path, schema). Requires SDC module enabled.',
+    description: 'List or fetch Single Directory Component (SDC) definitions. Without component_id returns a summary list with fields: id, extension (provider), path, has_schema (bool). With component_id returns the raw plugin definition object for that component. Requires SDC module enabled.',
     inputSchema: {
-       component_id: z.string().optional().describe('Component id namespace:name (e.g. core:button). Omit to list all.'),
+      component_id: z.string().optional().describe('Component id in "namespace:name" format (e.g. "core:button", "my_theme:card"). Omit to list all available components.'),
+      project_root: z.string().optional().describe('Absolute path to the Drupal project root. Falls back to DRUPAL_ROOT_DIR / DRUPAL_ROOT env vars, then auto-detection from cwd.'),
     },
     handler: async (args: any) => {
         const resolver = new RenderResolver(getRootDir(args));
@@ -196,10 +207,11 @@ export const renderTools: any[] = [
   },
   {
     name: 'summarize_render_path',
-    description: 'End-to-end render pipeline for node/block: theme_hook, template, preprocess count, library count. Use for overview without full array.',
+    description: 'End-to-end render pipeline summary for a node or block: resolves theme_hook, template name, template path, preprocess function count, and attached library count. Use as a fast overview before diving into inspect_render_array or find_preprocess_chain.',
     inputSchema: {
-       target_type: z.enum(['node', 'block']).describe('Entity type: node or block.'),
-       target_id: z.string().describe('Node nid as string, or block config id.'),
+      target_type: z.enum(['node', 'block']).describe('Entity type to summarize: "node" or "block".'),
+      target_id: z.string().describe('Entity identifier. For node: numeric nid as string (e.g. "42"). For block: block config entity id (e.g. "claro_help").'),
+      project_root: z.string().optional().describe('Absolute path to the Drupal project root. Falls back to DRUPAL_ROOT_DIR / DRUPAL_ROOT env vars, then auto-detection from cwd.'),
     },
     handler: async (args: any) => {
       const resolver = new RenderResolver(getRootDir(args));
