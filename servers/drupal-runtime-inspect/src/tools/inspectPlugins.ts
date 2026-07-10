@@ -4,7 +4,7 @@ import { RuntimeResolver } from '../runtime/runtimeResolver.js';
 
 export const inspectPluginsTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_plugins',
-  description: 'List plugin definitions for block, filter, condition, and queue worker types. Returns plugin_type, plugin_id, label, class. Not a full plugin registry scan.',
+  description: 'List plugin definitions for block, filter, condition, and queue_worker types. Returns plugin_type, plugin_id, label, class. The query filter matches plugin_id substring only. Not a full plugin registry scan.',
   inputSchema: {
     ...SharedArgsSchema.shape,
     query: z.string().optional().describe('Filter by plugin_id substring.'),

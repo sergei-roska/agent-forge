@@ -9,25 +9,25 @@ It executes PHP code directly via **Drush** (supporting Lando, DDEV, and Local e
 - **Drush-Powered**: No `DRUPAL_BASE_URL` or Auth headers required. Runs commands inside Lando/DDEV automatically.
 - **Smart Noise Reduction**: Curates raw Drupal objects (like FieldDefinitions and EntityTypes) on the PHP side to strip circular references and service bloat.
 - **Token Efficient**: Only returns the "Gold Standard" of properties needed by an AI agent.
-- **Pagination & Filtering**: Supports `limit`, `offset`, and `query` parameters on all heavy list tools.
+- **Pagination & Filtering**: Supports `limit`, `offset`, and `query` parameters on `inspect_entity_types`, `inspect_modules`, `inspect_routes`, and `inspect_services`.
 - **Schema-Aware**: Uses `@agent-forge/mcp-core` for standardized response envelopes.
 
 ## 🧰 Available Tools (12)
 
 | Tool | Description |
 |---|---|
-| `inspect_entity_types` | List IDs, labels, handlers, and tables. Supports field projection. |
-| `inspect_bundles` | List bundles for a specific entity type (e.g. content types). |
-| `inspect_fields` | List curated field definitions (base + config) for a bundle. |
-| `inspect_modules` | List enabled modules with versions. |
-| `inspect_themes` | List installed themes and active default/admin theme. |
-| `inspect_routes` | Search routing table with path and controller details. |
-| `inspect_services` | Search the active service container. |
-| `inspect_permissions` | Search for permissions and their providing modules. |
-| `inspect_menus` | List all system and custom menus. |
-| `inspect_vocabularies` | List taxonomy vocabularies. |
-| `inspect_plugins` | List major plugin types (Block, Filter, Condition, etc.). |
-| `search_runtime_objects` | Global search across multiple systems in one call. |
+| `inspect_entity_types` | List entity types. Returns entity_type_id, label, provider, class, handlers (storage class). Supports query filter and field projection. |
+| `inspect_bundles` | List bundles for a specific entity type. Returns bundle (machine_name) and label. Requires `entity_type_id`. |
+| `inspect_fields` | List field definitions for an entity type. Returns field_name, field_type, label, required, translatable, provider. Accepts optional `bundle`. |
+| `inspect_modules` | List enabled modules. Returns machine_name, name, version. Supports query, limit, and offset. |
+| `inspect_themes` | List installed themes. Returns machine_name, name, is_default (true for active frontend theme). |
+| `inspect_routes` | Search Symfony routing table. Returns route_name, path, controller, requirements. |
+| `inspect_services` | Search the DI container. Returns service id and resolved class. |
+| `inspect_permissions` | List permission definitions. Returns permission (machine_name) and title. |
+| `inspect_menus` | List all menu config entities. Returns id and label. |
+| `inspect_vocabularies` | List taxonomy vocabularies. Returns vid and name. |
+| `inspect_plugins` | List plugins for block, filter, condition, and queue_worker types. Returns plugin_type, plugin_id, label, class. |
+| `search_runtime_objects` | Broad discovery across entity types and modules. Returns up to 5 matches each. |
 
 ## 🚀 Quick Start
 
@@ -81,7 +81,8 @@ For each tool:
 ## 🔋 Environment Variables
 
 - `DRUPAL_ROOT_DIR`: (Optional) Absolute path to your Drupal project. If omitted, the server will try to auto-detect the root from the current working directory by looking for `composer.json` and a `web/` or `core/` folder.
+- `DRUSH_OPTIONS_URI` / `DRUSH_URI`: (Optional) Passes `--uri=<value>` to Drush for multisite or specific environment targeting.
 
 ## 🛡️ Security
 
-This server is designed for **local development**. It uses `drush php-eval` to execute hardcoded, curated PHP snippets. Ensure you only use it in environments where you trust the local Drush access.
+This server is designed for **local development**. It uses `drush php-script` to execute hardcoded, curated PHP snippets. Ensure you only use it in environments where you trust the local Drush access.

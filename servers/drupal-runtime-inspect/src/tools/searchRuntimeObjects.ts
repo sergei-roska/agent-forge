@@ -4,7 +4,7 @@ import { RuntimeResolver } from '../runtime/runtimeResolver.js';
 
 export const searchRuntimeObjectsTool = (rootDir: string): ToolDefinition => ({
   name: 'search_runtime_objects',
-  description: 'Broad discovery when target type is unknown. Returns up to 5 entity types and modules per query. Prefer specific inspect_* tools once object type is known.',
+  description: 'Broad discovery across entity types and modules when the target type is unknown. Returns up to 5 matching entity_types and module machine_names per query. Prefer specific inspect_* tools once the object type is known.',
   inputSchema: {
     query: z.string().describe('Substring to match entity_type_id or module machine_name.'),
   },

@@ -10,7 +10,7 @@ export const inspectMenusTool = (rootDir: string): ToolDefinition => ({
     const data = await resolver.inspectMenus();
 
     return buildEnvelope({
-      summary: `Found ${data.length} menus.`,
+      summary: `Found ${data.items.length} menus.`,
       data: data,
       source: 'runtime',
       verbosity: args.verbosity,

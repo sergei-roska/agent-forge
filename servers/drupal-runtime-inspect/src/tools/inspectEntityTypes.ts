@@ -4,7 +4,7 @@ import { RuntimeResolver } from '../runtime/runtimeResolver.js';
 
 export const inspectEntityTypesTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_entity_types',
-  description: 'List registered entity types. Returns entity_type_id, label, provider, class, handlers. Use before bundle/field lookups or to confirm a type exists at runtime.',
+  description: 'List registered entity types. Returns entity_type_id, label, provider, class, handlers (storage class). Use before bundle/field lookups or to confirm a type exists at runtime.',
   inputSchema: {
     ...SharedArgsSchema.shape,
     query: z.string().optional().describe('Filter by entity_type_id or label substring (case-insensitive).'),

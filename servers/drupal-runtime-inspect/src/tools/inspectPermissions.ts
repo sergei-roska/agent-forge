@@ -4,7 +4,7 @@ import { RuntimeResolver } from '../runtime/runtimeResolver.js';
 
 export const inspectPermissionsTool = (rootDir: string): ToolDefinition => ({
   name: 'inspect_permissions',
-  description: 'List permission definitions. Returns permission machine_name and title. Use for access-control or role analysis.',
+  description: 'List permission definitions. Returns permission (machine_name) and title. Use for access-control or role analysis.',
   inputSchema: {
     ...SharedArgsSchema.shape,
     query: z.string().optional().describe('Filter by permission machine_name substring.'),
@@ -14,7 +14,7 @@ export const inspectPermissionsTool = (rootDir: string): ToolDefinition => ({
     const data = await resolver.inspectPermissions(args.query as string);
 
     return buildEnvelope({
-      summary: `Found ${data.length} permissions matching query.`,
+      summary: `Found ${data.items.length} permissions matching query.`,
       data: data,
       source: 'runtime',
       verbosity: args.verbosity,

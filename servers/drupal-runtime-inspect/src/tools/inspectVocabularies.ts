@@ -10,7 +10,7 @@ export const inspectVocabulariesTool = (rootDir: string): ToolDefinition => ({
     const data = await resolver.inspectVocabularies();
 
     return buildEnvelope({
-      summary: `Found ${data.length} vocabularies.`,
+      summary: `Found ${data.items.length} vocabularies.`,
       data: data,
       source: 'runtime',
       verbosity: args.verbosity,
