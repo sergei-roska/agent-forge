@@ -1,69 +1,89 @@
 # Agent Forge 🛠️
 
-Agent Forge is a high-performance monorepo workspace dedicated to building, testing, and shipping **Model Context Protocol (MCP)** servers and specialized agentic tools. It provides a structured environment for developing intelligent interfaces, with a particular focus on Drupal ecosystem intelligence and browser-based observation.
+Agent Forge is a pnpm monorepo for building, testing, and shipping Model Context Protocol (MCP) servers and specialized agent tools. The workspace is centered on Drupal ecosystem intelligence, local codebase memory, and browser-based observation.
 
-## 📁 Project Structure
+## Workspace Layout
 
-This workspace is organized as a `pnpm` monorepo:
+### `packages/`
+Shared libraries and infrastructure used across the workspace:
+- `mcp-core` - shared MCP contracts, envelope helpers, and base types.
+- `browser-observer` - browser observation utilities.
+- `drupal-api-client` - Drupal API client helpers.
+- `filesystem-index` - local filesystem indexing helpers.
 
-- **`packages/`**: Core shared libraries and infrastructure.
-  - `mcp-core`: Strict contracts and base types for MCP servers (powered by Zod).
-  - `browser-observer`: Tools for tracking and analyzing browser interactions.
-  - `drupal-api-client`: Unified client for interacting with Drupal APIs.
-  - `filesystem-index`: Fast indexing for local codebase analysis.
-- **`servers/`**: Specialized MCP servers ready for deployment.
-  - `drupal-*`: A suite of servers for Drupal codebase introspection, config intelligence, and content modeling.
-  - `local-memory-indexer`: Background indexing, chunking, and embedding pipeline.
-  - `local-memory-search`: Semantic search, knowledge graph queries, and memory capabilities.
-  - `web-observe-capture`: Real-time browser capture and observation.
-- **`standalone/`**: Self-contained, exported versions of tools for independent use.
-- **`specs/`**: Documentation and protocol specifications.
+### `servers/`
+Deployable MCP servers:
+- `drupal-codebase-introspect` - static Drupal codebase introspection and symbol mapping.
+- `drupal-config-intelligence` - Drupal config lifecycle, drift, and deployment safety analysis.
+- `drupal-content-model` - editorial structure, relationships, and moderation inspection.
+- `drupal-operations-debug` - runtime diagnostics, logs, queues, cron, and health state.
+- `drupal-render-theming` - template resolution, preprocess chains, SDCs, and layout inspection.
+- `drupal-runtime-inspect` - runtime Drupal entity, field, module, theme, and permission inspection.
+- `local-memory-indexer` - write-only local indexing and embedding pipeline.
+- `local-memory-search` - read-only local retrieval, context packs, and diagnostics.
+- `web-observe-capture` - browser screenshots and DOM/layout observation.
 
-## 🚀 Getting Started
+### `standalone/`
+Exported standalone bundles for selected tools.
 
-### Prerequisites
+### `specs/`
+Protocol and implementation specifications for the workspace.
 
-- **Node.js**: `v20.0.0` or higher
-- **pnpm**: `v8.0.0` or higher
+## Requirements
 
-### Installation
+- Node.js `>=20.0.0`
+- pnpm `>=8.0.0`
 
-Clone the repository and install dependencies from the root:
+## Common Commands
+
+Run from the repository root:
 
 ```bash
 pnpm install
+pnpm run build
+pnpm run test
+pnpm run typecheck
 ```
 
-### Building the Project
-
-Compile all packages and servers in the workspace:
+Additional workspace commands:
 
 ```bash
+pnpm run export:standalone
+pnpm run export:standalone:all
+pnpm run verify:standalone
+```
+
+## Working With Servers
+
+Each server has its own `README.md` and `package.json` under `servers/<name>/`.
+
+Typical flow:
+1. Enter the server directory.
+2. Read the server-specific README for setup and runtime notes.
+3. Build the server and point your MCP client to the generated `dist/index.js` entry point.
+
+Example:
+
+```bash
+cd servers/drupal-runtime-inspect
 pnpm run build
 ```
 
-## 🛠️ Development
+## MCP Integration
 
-Available scripts from the root:
+Most servers expose an MCP-compatible entry point after build. Configure your client using the server directory name and its `dist/index.js` file, for example:
 
-- `pnpm run build`: Build all workspace members.
-- `pnpm run test`: Run tests across all packages.
-- `pnpm run typecheck`: Run TypeScript validation.
-- `pnpm run export:standalone`: Export servers to standalone bundles in the `standalone/` directory.
-- `pnpm run verify:standalone`: Validate the integrity of standalone exports.
+```json
+{
+  "mcpServers": {
+    "drupal-runtime-inspect": {
+      "command": "node",
+      "args": ["/absolute/path/to/agent-forge/servers/drupal-runtime-inspect/dist/index.js"]
+    }
+  }
+}
+```
 
-## 🧩 MCP Integration
+## License
 
-Each server in the `servers/` directory can be integrated with MCP-compatible clients (like Claude Desktop or custom agents). 
-
-1. Navigate to a specific server: `cd servers/some-server`.
-2. Follow the server-specific instructions in its `README.md`.
-3. Point your client to the server's entry point (usually `dist/index.js` after building).
-
-## 🛡️ License
-
-This project is licensed under the Apache License, Version 2.0 (the "License"). You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+Apache License 2.0.
