@@ -179,7 +179,8 @@ Index a project first via **`local-memory-indexer`**, then query here.
 
 1. Install the servers globally:
    ```bash
-   npm install -g @local-memory/indexer @local-memory/search
+   # Note: --allow-scripts is required to build native dependencies (SQLite, ONNX Runtime, etc.)
+   npm install -g @local-memory/indexer @local-memory/search --allow-scripts=better-sqlite3,onnxruntime-node,sharp,protobufjs
    ```
 
 2. Add the following to your MCP client configuration (e.g., `claude_desktop_config.json` or Cursor settings):
@@ -192,22 +193,14 @@ Index a project first via **`local-memory-indexer`**, then query here.
       "args": [
         "-y",
         "@local-memory/indexer"
-      ],
-      "env": {
-        "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/you/.agent-forge/local-memory-search",
-        "OLLAMA_BASE_URL": "http://127.0.0.1:11434"
-      }
+      ]
     },
     "local-memory-search": {
       "command": "npx",
       "args": [
         "-y",
         "@local-memory/search"
-      ],
-      "env": {
-        "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/you/.agent-forge/local-memory-search",
-        "OLLAMA_BASE_URL": "http://127.0.0.1:11434"
-      }
+      ]
     }
   }
 }

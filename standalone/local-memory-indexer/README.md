@@ -140,7 +140,8 @@ $LOCAL_VECTOR_SEARCH_DATA_ROOT/<project-slug>/
 
 1. Install the server globally:
    ```bash
-   npm install -g @local-memory/indexer
+   # Note: --allow-scripts is required to build native dependencies (SQLite, ONNX Runtime, etc.)
+   npm install -g @local-memory/indexer --allow-scripts=better-sqlite3,onnxruntime-node,sharp,protobufjs
    ```
 
 2. Add the following to your MCP client configuration (e.g., `claude_desktop_config.json` or Cursor settings):
@@ -152,11 +153,7 @@ $LOCAL_VECTOR_SEARCH_DATA_ROOT/<project-slug>/
          "args": [
            "-y",
            "@local-memory/indexer"
-         ],
-         "env": {
-           "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/you/.agent-forge/local-memory-search",
-           "OLLAMA_BASE_URL": "http://127.0.0.1:11434"
-         }
+         ]
        }
      }
    }
