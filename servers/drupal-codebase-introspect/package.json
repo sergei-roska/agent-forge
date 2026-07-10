@@ -1,6 +1,6 @@
 {
   "name": "@drupal-forge/server-codebase-introspect",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "description": "MCP server for Drupal codebase introspection and mapping (Spec 04)",
   "type": "module",

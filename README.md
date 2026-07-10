@@ -30,7 +30,7 @@ If you are an AI Coding Agent, you can automatically install and configure all 9
 
 1. **Install Globally**: Run the following command to install all 9 servers globally on the user's machine:
    ```bash
-   npm install -g @drupal-forge/server-codebase-introspect @drupal-forge/server-config-intelligence @drupal-forge/server-content-model @drupal-forge/server-operations-debug @drupal-forge/server-render-theming @drupal-forge/server-runtime-inspect @local-memory/indexer @local-memory/search @drupal-forge/server-web-observe-capture
+   npm install -g @drupal-forge/server-codebase-introspect @drupal-forge/server-config-intelligence @drupal-forge/server-content-model @drupal-forge/server-operations-debug @drupal-forge/server-render-theming @drupal-forge/server-runtime-inspect @drupal-forge/server-web-observe-capture
    ```
 
 2. **Configure Client**: Read the unified JSON configuration in the next section and merge/append it into the user's MCP client configuration file (e.g. `~/.config/Claude/claude_desktop_config.json` on Linux/macOS, or `%APPDATA%/Claude/claude_desktop_config.json` on Windows).
