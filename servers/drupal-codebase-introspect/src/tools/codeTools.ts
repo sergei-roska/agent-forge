@@ -42,9 +42,9 @@ function getInstances(rootDir: string) {
 
 export const listCustomModulesTool = (rootDir: string): ToolDefinition => ({
   name: 'list_custom_modules',
-  description: 'List custom modules (modules/custom/). Returns machine_name, path, package. Use before module-scoped searches.',
+  description: 'List custom modules (modules/custom/). Returns machine_name, name, description, path, package. Use before module-scoped searches.',
   inputSchema: {
-    query: z.string().optional().describe('Filter by machine_name or label substring (case-insensitive).'),
+    query: z.string().optional().describe('Filter by machine_name or name substring (case-insensitive).'),
   } as any,
   handler: async (args) => {
     try {
@@ -63,10 +63,10 @@ export const listCustomModulesTool = (rootDir: string): ToolDefinition => ({
 
 export const findHookImplementationsTool = (rootDir: string): ToolDefinition => ({
   name: 'find_hook_implementations',
-  description: 'Find hook_N implementations. Returns file, line, module. Use when you know the hook suffix.',
+  description: 'Find hook_N implementations via static PHP scan. Returns symbol (full function name), file_path, line, module, confidence. Use when you know the hook suffix.',
   inputSchema: {
     hook_name: z.string().describe('Hook suffix without hook_ prefix. Examples: node_insert, form_alter.'),
-    module: z.string().optional().describe('Module machine_name. Omit to search all custom modules.'),
+    module: z.string().optional().describe('Exact module machine_name to restrict results. Omit to search all custom modules.'),
     limit: z.number().optional().describe('Max results. Integer ≥1.'),
   } as any,
   handler: async (args) => {
@@ -86,10 +86,10 @@ export const findHookImplementationsTool = (rootDir: string): ToolDefinition => 
 
 export const findServiceDefinitionsTool = (rootDir: string): ToolDefinition => ({
   name: 'find_service_definitions',
-  description: 'Search *.services.yml. Returns service_id, class, YAML path, tags. Use to resolve container services to code.',
+  description: 'Search *.services.yml. Returns service_id, class (FQCN), file_path (path to the .services.yml file, not the PHP class), tags, module, confidence. Use to resolve container services to code.',
   inputSchema: {
-    service_id: z.string().optional().describe('Exact service ID. Example: entity_type.manager.'),
-    class_name: z.string().optional().describe('Substring of PHP class FQCN. Example: NodeStorage.'),
+    service_id: z.string().optional().describe('Exact service ID (equality match). Example: entity_type.manager.'),
+    class_name: z.string().optional().describe('Substring of PHP class FQCN (case-sensitive). Example: NodeStorage.'),
   } as any,
   handler: async (args) => {
     try {
@@ -108,9 +108,9 @@ export const findServiceDefinitionsTool = (rootDir: string): ToolDefinition => (
 
 export const findEventSubscribersTool = (rootDir: string): ToolDefinition => ({
   name: 'find_event_subscribers',
-  description: 'List EventSubscriber classes. Returns class, file_path. Use to trace event handlers in code.',
+  description: 'List EventSubscriber classes via static PHP scan. Returns class, file_path, module, confidence, events (always ["unknown (static analysis limitation)"] — exact event extraction requires runtime). event_name filters by raw file content substring.',
   inputSchema: {
-    event_name: z.string().optional().describe('Event class or name substring. Omit to list all subscribers.'),
+    event_name: z.string().optional().describe('Raw substring to search inside the subscriber file content (event class name or string literal). Omit to list all subscribers.'),
   } as any,
   handler: async (args) => {
     try {
@@ -129,10 +129,10 @@ export const findEventSubscribersTool = (rootDir: string): ToolDefinition => ({
 
 export const findPluginClassesTool = (rootDir: string): ToolDefinition => ({
   name: 'find_plugin_classes',
-  description: 'Find @Plugin annotated classes. Returns class, file_path, module. Use for blocks, fields, filters, etc.',
+  description: 'Find @Plugin annotated classes via static PHP scan. Returns plugin_type (internal symbol name), plugin_id (from arg or "extracted-via-static" when omitted), class (short name from filename), file_path, module, confidence. plugin_type matches against the symbol name heuristically; plugin_id searches raw file content for quoted string.',
   inputSchema: {
-    plugin_type: z.string().optional().describe('Plugin type fragment. Examples: Block, FieldWidget, migrate.source.'),
-    plugin_id: z.string().optional().describe('Plugin ID literal from annotation (id: "my_block").'),
+    plugin_type: z.string().optional().describe('Fragment matched against the internal plugin symbol name. Examples: Block, FieldWidget, migrate.source.'),
+    plugin_id: z.string().optional().describe('Plugin ID string to search for inside file content (heuristic). Example: my_block.'),
   } as any,
   handler: async (args) => {
     try {
@@ -151,9 +151,9 @@ export const findPluginClassesTool = (rootDir: string): ToolDefinition => ({
 
 export const findFormClassesTool = (rootDir: string): ToolDefinition => ({
   name: 'find_form_classes',
-  description: 'Locate FormBase/ConfigFormBase class file and routes referencing it.',
+  description: 'Locate form classes (FormBase/ConfigFormBase) via static PHP scan and routes referencing them. Returns class, form_base (always "FormBase (Static Assumption)"), file_path, route_names, confidence. Omit class_name to list all detected form classes.',
   inputSchema: {
-    class_name: z.string().describe('Exact PHP short class name (not FQCN). Example: NodeTypeForm.'),
+    class_name: z.string().optional().describe('Exact PHP short class name (not FQCN, equality match). Omit to list all form classes. Example: NodeTypeForm.'),
   } as any,
   handler: async (args) => {
     try {
@@ -172,10 +172,10 @@ export const findFormClassesTool = (rootDir: string): ToolDefinition => ({
 
 export const findControllerHandlersTool = (rootDir: string): ToolDefinition => ({
   name: 'find_controller_handlers',
-  description: 'Map routing.yml entries to controller class, method, PHP file. Use for URL-to-code tracing.',
+  description: 'Map *.routing.yml entries to controller class, method, PHP file_path, confidence. method falls back to "__invoke" when not specified in routing.yml. file_path is "unknown (static lookup failed)" when the controller class cannot be matched via PHP scan.',
   inputSchema: {
-    route_name: z.string().optional().describe('Exact route name. Example: entity.node.canonical.'),
-    path: z.string().optional().describe('URL path substring. Example: /admin/config.'),
+    route_name: z.string().optional().describe('Exact route name (equality match). Example: entity.node.canonical.'),
+    path: z.string().optional().describe('URL path substring (case-sensitive). Example: /admin/config.'),
   } as any,
   handler: async (args) => {
     try {
@@ -194,10 +194,10 @@ export const findControllerHandlersTool = (rootDir: string): ToolDefinition => (
 
 export const findPreprocessFunctionsTool = (rootDir: string): ToolDefinition => ({
   name: 'find_preprocess_functions',
-  description: 'Find theme_preprocess_* functions. Returns function_name, file, line, owner.',
+  description: 'Find OWNER_preprocess_HOOK functions (from both modules and themes). Returns function_name, file_path, line, owner (prefix before "_preprocess_"), confidence.',
   inputSchema: {
-    hook: z.string().optional().describe('Base hook substring in function name. Examples: node, page, field.'),
-    theme: z.string().optional().describe('Theme machine_name prefix. Examples: olivero, claro.'),
+    hook: z.string().optional().describe('Substring matched anywhere in the full function name. Examples: node, page, field.'),
+    theme: z.string().optional().describe('Owner name prefix (module or theme machine_name). Matches functions whose name starts with "<theme>_". Examples: olivero, my_module.'),
   } as any,
   handler: async (args) => {
     try {
@@ -216,9 +216,9 @@ export const findPreprocessFunctionsTool = (rootDir: string): ToolDefinition => 
 
 export const findDrushCommandsTool = (rootDir: string): ToolDefinition => ({
   name: 'find_drush_commands',
-  description: 'Find Drush command provider classes. Returns class, file_path.',
+  description: 'Find Drush command provider classes via static PHP scan. Returns command_name (echoes arg, or "unknown (static analysis limitation)" when omitted), class, file_path, confidence (always 0.7 — heuristic only). command_name filters by raw content substring or class name substring.',
   inputSchema: {
-    command_name: z.string().optional().describe('Drush command name/alias substring. Omit to list all providers.'),
+    command_name: z.string().optional().describe('Substring to search inside class file content or class name (heuristic). Omit to list all Drush command provider classes.'),
   } as any,
   handler: async (args) => {
     try {
@@ -237,11 +237,19 @@ export const findDrushCommandsTool = (rootDir: string): ToolDefinition => ({
 
 export const traceRuntimeToCodeTool = (rootDir: string): ToolDefinition => ({
   name: 'trace_runtime_to_code',
-  description: 'Resolve runtime symbol to ranked code locations. Prefer domain-specific tools when type is certain.',
+  description: 'Resolve a runtime symbol to ranked code locations. Delegates to domain-specific resolvers. Prefer domain-specific tools when symbol type is certain.',
   inputSchema: {
-    domain: z.enum(['route', 'service', 'hook', 'preprocess', 'plugin', 'form_class', 'entity_bundle']).describe('Symbol kind. route=route name, service=service ID, hook=hook suffix, plugin=plugin ID, form_class=short class name.'),
-    identifier: z.string().describe('Primary symbol. Examples: entity.node.canonical, entity_type.manager, form_alter, my_block.'),
-    secondary_identifier: z.string().optional().describe('plugin: plugin_type. preprocess: theme machine_name.'),
+    domain: z.enum(['route', 'service', 'hook', 'preprocess', 'plugin', 'form_class']).describe(
+      'Symbol kind: ' +
+      'route = exact route name (→ find_controller_handlers); ' +
+      'service = exact service ID (→ find_service_definitions); ' +
+      'hook = hook suffix without hook_ prefix (→ find_hook_implementations); ' +
+      'preprocess = hook substring (→ find_preprocess_functions); ' +
+      'plugin = plugin_id string, secondary_identifier = plugin_type fragment (→ find_plugin_classes); ' +
+      'form_class = exact short class name (→ find_form_classes).'
+    ),
+    identifier: z.string().describe('Primary symbol value. Examples: entity.node.canonical (route), entity_type.manager (service), node_insert (hook), my_block (plugin), NodeTypeForm (form_class).'),
+    secondary_identifier: z.string().optional().describe('plugin domain: plugin_type fragment. preprocess domain: owner/theme name prefix (passed as themeName filter).'),
     limit: z.number().default(5).describe('Max ranked results. Integer, default 5.'),
   } as any,
   handler: async (args) => {
