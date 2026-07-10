@@ -102,24 +102,15 @@ Provide at least one of `run_id` or `project_path`.
 
 The search server must use the **same embedding model** that produced the index.
 
-## 🚀 Quick Start (Forge)
-
-```bash
-# From the root of agent-forge
-pnpm install
-pnpm --filter @agent-forge/server-local-memory-indexer build
-pnpm --filter @agent-forge/server-local-memory-indexer test
-```
+## 🚀 Installation & Configuration
 
 Ensure Ollama is running and the embedding model is pulled:
-
 ```bash
 ollama pull qwen3-embedding:4b
 ollama pull granite4.1:3b   # optional, for chunk enrichment
 ```
 
 Typical workflow:
-
 ```
 start_indexing(project_path: "/abs/path/to/project")
   → get_indexing_status(project_path: "/abs/path/to/project")   # poll until completed
@@ -145,38 +136,31 @@ $LOCAL_VECTOR_SEARCH_DATA_ROOT/<project-slug>/
   lancedb/      # LanceDB vector + FTS tables
 ```
 
-## 🛠 MCP Client Configuration
+### Via npm (Recommended)
 
-### Claude Desktop / Cursor (`mcp.json`)
+1. Install the server globally:
+   ```bash
+   npm install -g @local-memory/indexer
+   ```
 
-```json
-{
-  "mcpServers": {
-    "local-memory-indexer": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/agent-forge/servers/local-memory-indexer/dist/index.js"
-      ],
-      "env": {
-        "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/you/.agent-forge/local-memory-search",
-        "OLLAMA_BASE_URL": "http://127.0.0.1:11434"
-      }
-    },
-    "local-memory-search": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/agent-forge/servers/local-memory-search/dist/index.js"
-      ],
-      "env": {
-        "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/you/.agent-forge/local-memory-search"
-      }
-    }
-  }
-}
-```
-
-Replace paths with the actual absolute paths to your built `dist/index.js` files.
-Both servers **must share the same** `LOCAL_VECTOR_SEARCH_DATA_ROOT`.
+2. Add the following to your MCP client configuration (e.g., `claude_desktop_config.json` or Cursor settings):
+   ```json
+   {
+     "mcpServers": {
+       "local-memory-indexer": {
+         "command": "npx",
+         "args": [
+           "-y",
+           "@local-memory/indexer"
+         ],
+         "env": {
+           "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/you/.agent-forge/local-memory-search",
+           "OLLAMA_BASE_URL": "http://127.0.0.1:11434"
+         }
+       }
+     }
+   }
+   ```
 
 ## 🎬 Exploratory Demo Scenario
 

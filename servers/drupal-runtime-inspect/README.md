@@ -29,31 +29,29 @@ It executes PHP code directly via **Drush** (supporting Lando, DDEV, and Local e
 | `inspect_plugins` | List plugins for block, filter, condition, and queue_worker types. Returns plugin_type, plugin_id, label, class. |
 | `search_runtime_objects` | Broad discovery across entity types and modules. Returns up to 5 matches each. |
 
-## 🚀 Quick Start
+## 🚀 Installation & Configuration
 
-### 1. Build inside the Forge (Monorepo)
-```bash
-# From the root of agent-forge
-pnpm install
-cd servers/drupal-runtime-inspect
-npm run build
-```
+### Via npm (Recommended)
 
-### 2. Configure MCP Client (e.g. Claude Desktop)
-The server **automatically detects** your Drupal project root by looking upward from the current working directory. No path configuration is required in the server settings.
+1. Install the server globally:
+   ```bash
+   npm install -g @drupal-forge/server-runtime-inspect
+   ```
 
-```json
-{
-  "mcpServers": {
-    "drupal-runtime-inspect": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/drupal-runtime-inspect/dist/index.js"
-      ]
-    }
-  }
-}
-```
+2. Add the following to your MCP client configuration (e.g., `claude_desktop_config.json` or Cursor settings):
+   ```json
+   {
+     "mcpServers": {
+       "drupal-runtime-inspect": {
+         "command": "npx",
+         "args": [
+           "-y",
+           "@drupal-forge/server-runtime-inspect"
+         ]
+       }
+     }
+   }
+   ```
 
 ### 3. Environment Variables
 

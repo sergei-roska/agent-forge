@@ -29,33 +29,29 @@ MCP server for explaining Drupal's complex template resolution, preprocess chain
 
 All tools accept an optional **`project_root`** parameter — an absolute path to the Drupal project root. If omitted, the server falls back to the `DRUPAL_ROOT_DIR` or `DRUPAL_ROOT` environment variables, then auto-detects the root by walking up from `cwd`.
 
-## 🚀 Quick Start (Forge)
+## 🚀 Installation & Configuration
 
-```bash
-# From the root of agent-forge
-pnpm install
-cd servers/drupal-render-theming
-pnpm run build
-```
+### Via npm (Recommended)
 
-## 🛠 MCP Client Configuration
+1. Install the server globally:
+   ```bash
+   npm install -g @drupal-forge/server-render-theming
+   ```
 
-To use this server in your MCP client (e.g., Claude Desktop), add the following to your configuration file:
-
-```json
-{
-  "mcpServers": {
-    "drupal-render-theming": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/drupal-render-theming/dist/index.js"
-      ]
-    }
-  }
-}
-```
-
-*Note: Replace the path with the actual absolute path to your `dist/index.js`.*
+2. Add the following to your MCP client configuration (e.g., `claude_desktop_config.json` or Cursor settings):
+   ```json
+   {
+     "mcpServers": {
+       "drupal-render-theming": {
+         "command": "npx",
+         "args": [
+           "-y",
+           "@drupal-forge/server-render-theming"
+         ]
+       }
+     }
+   }
+   ```
 
 ## 🎬 Guided Exploration & Demonstration Scenario
 

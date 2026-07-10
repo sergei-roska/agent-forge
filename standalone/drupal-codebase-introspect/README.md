@@ -27,33 +27,29 @@ MCP server for mapping Drupal runtime behaviors to actionable file locations.
 | `trace_runtime_to_code` | Unified entry point for symbolic-to-file resolution. |
 | `summarize_code_inventory` | Structured count of custom modules, services, and routes. Use for initial codebase orientation. |
 
-## 🚀 Quick Start (Forge)
+## 🚀 Installation & Configuration
 
-```bash
-# From the root of agent-forge
-npm install
-cd servers/drupal-codebase-introspect
-npm run build
-```
+### Via npm (Recommended)
 
-## 🛠 MCP Client Configuration
+1. Install the server globally:
+   ```bash
+   npm install -g @drupal-forge/server-codebase-introspect
+   ```
 
-To use this server in your MCP client (e.g., Claude Desktop), add the following to your configuration file:
-
-```json
-{
-  "mcpServers": {
-    "drupal-codebase-introspect": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/drupal-codebase-introspect/dist/index.js"
-      ]
-    }
-  }
-}
-```
-
-*Note: Replace the path with the actual absolute path to your `dist/index.js`.*
+2. Add the following to your MCP client configuration (e.g., `claude_desktop_config.json` or Cursor settings):
+   ```json
+   {
+     "mcpServers": {
+       "drupal-codebase-introspect": {
+         "command": "npx",
+         "args": [
+           "-y",
+           "@drupal-forge/server-codebase-introspect"
+         ]
+       }
+     }
+   }
+   ```
 
 ## 🗺 Interactive Codebase Exploration (Capabilities Demo)
 

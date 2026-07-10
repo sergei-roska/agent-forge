@@ -24,7 +24,7 @@ search latency is never impacted by background indexing writes.
 - **Per-project isolation** — every query is filtered by `project_path` **and**
   `schema_version`; no cross-project federation.
 - **Agent-ready context packs** — token-budgeted excerpts with optional neighbor
-  expansion and optional `qwen3.5:9b` LLM re-ranking.
+  expansion and optional `granite4.1:3b` LLM re-ranking.
 
 ## 🧰 Available Tools (15, read-only)
 
@@ -156,13 +156,11 @@ The `filters` object is strictly validated. The supported keys (all optional) ar
 > [!NOTE]
 > This server's query embedding timeout has been optimized (increased to 30s) to allow seamless model swapping on laptop GPUs with 4 GB of VRAM.
 
-## 🚀 Quick Start (Forge)
+## 🚀 Installation & Configuration
 
+Ensure Ollama is running and the embedding model is pulled:
 ```bash
-# From the root of agent-forge
-pnpm install
-pnpm --filter @agent-forge/server-local-memory-search build
-pnpm --filter @agent-forge/server-local-memory-search test
+ollama pull qwen3-embedding:4b
 ```
 
 Index a project first via **`local-memory-indexer`**, then query here.
@@ -177,52 +175,45 @@ Index a project first via **`local-memory-indexer`**, then query here.
 | `EMBED_MODEL` | `qwen3-embedding:4b` | Query embedding model (must match indexer). |
 | `RERANK_MODEL` | `granite4.1:3b` | LLM re-ranker for `retrieve_context_pack`. |
 
-## 🛠 MCP Client Configuration
+### Via npm (Recommended)
 
-### Claude Desktop / Cursor (`mcp.json`)
+1. Install the servers globally:
+   ```bash
+   npm install -g @local-memory/indexer @local-memory/search
+   ```
+
+2. Add the following to your MCP client configuration (e.g., `claude_desktop_config.json` or Cursor settings):
 
 ```json
 {
   "mcpServers": {
     "local-memory-indexer": {
-      "command": "node",
+      "command": "npx",
       "args": [
-        "/absolute/path/to/agent-forge/servers/local-memory-indexer/dist/index.js"
+        "-y",
+        "@local-memory/indexer"
       ],
       "env": {
-        "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/you/.agent-forge/local-memory-search"
+        "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/you/.agent-forge/local-memory-search",
+        "OLLAMA_BASE_URL": "http://127.0.0.1:11434"
       }
     },
     "local-memory-search": {
-      "command": "node",
+      "command": "npx",
       "args": [
-        "/absolute/path/to/agent-forge/servers/local-memory-search/dist/index.js"
+        "-y",
+        "@local-memory/search"
       ],
       "env": {
-        "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/you/.agent-forge/local-memory-search"
+        "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/you/.agent-forge/local-memory-search",
+        "OLLAMA_BASE_URL": "http://127.0.0.1:11434"
       }
     }
   }
 }
 ```
 
-Replace paths with the actual absolute paths to your built `dist/index.js` files.
 Both servers **must share the same** `LOCAL_VECTOR_SEARCH_DATA_ROOT`.
-
-Search-only configuration (when indexing is handled elsewhere):
-
-```json
-{
-  "mcpServers": {
-    "local-memory-search": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/agent-forge/servers/local-memory-search/dist/index.js"
-      ]
-    }
-  }
-}
-```
 
 The frozen contract version is **1.0** (`server.manifest.json` →
 `contract_frozen`). Tool names, required params, and the envelope shape must not

@@ -27,30 +27,29 @@ MCP server for deep analysis of Drupal configuration lifecycle, drift detection,
 | `inspect_recipe_state` | **[Best-effort]** Report applied Drupal Recipes (D10.3+). Results are estimates — Drupal has no stable public API for applied recipe state. | `recipe_name` string (optional, omit for all) | `recipe_name`, `managed_config_count`, `missing_count`, `changed_count`, `supported` |
 | `summarize_deployment_risk` | Aggregate deploy risk across all drift + active splits. Takes no arguments. | _(none)_ | `summary`, `highest_risk_items[]`, `blockers[]`, `suggested_checks[]` |
 
-## 🚀 Quick Start (Forge)
+## 🚀 Installation & Configuration
 
-```bash
-# From the root of agent-forge
-npm install
-cd servers/drupal-config-intelligence
-npm run build
-```
+### Via npm (Recommended)
 
-### Configure MCP Client
-Point your client to `dist/index.js`. It will **automatically detect** the Drupal project root.
+1. Install the server globally:
+   ```bash
+   npm install -g @drupal-forge/server-config-intelligence
+   ```
 
-```json
-{
-  "mcpServers": {
-    "drupal-config-intelligence": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/drupal-config-intelligence/dist/index.js"
-      ]
-    }
-  }
-}
-```
+2. Add the following to your MCP client configuration (e.g., `claude_desktop_config.json` or Cursor settings):
+   ```json
+   {
+     "mcpServers": {
+       "drupal-config-intelligence": {
+         "command": "npx",
+         "args": [
+           "-y",
+           "@drupal-forge/server-config-intelligence"
+         ]
+       }
+     }
+   }
+   ```
 
 ## 🎬 Interactive Demonstration Scenario
 

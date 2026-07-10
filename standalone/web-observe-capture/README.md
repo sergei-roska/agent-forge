@@ -185,35 +185,31 @@ Closes the Playwright browser context and releases all session resources.
   }
   ```
 
-## 🚀 Quick Start (Forge)
+## 🚀 Installation & Configuration
 
-```bash
-# From the root of agent-forge
-pnpm install
-cd servers/web-observe-capture
-# Ensure browsers are installed
-npx playwright install chromium
-pnpm run build
-```
+### Via npm (Recommended)
 
-## 🛠 MCP Client Configuration
+1. Install the server globally:
+   ```bash
+   npm install -g @drupal-forge/server-web-observe-capture
+   ```
 
-To use this server in your MCP client (e.g., Claude Desktop), add the following to your configuration file:
+2. Add the following to your MCP client configuration (e.g., `claude_desktop_config.json` or Cursor settings):
+   ```json
+   {
+     "mcpServers": {
+       "web-observe-capture": {
+         "command": "npx",
+         "args": [
+           "-y",
+           "@drupal-forge/server-web-observe-capture"
+         ]
+       }
+     }
+   }
+   ```
 
-```json
-{
-  "mcpServers": {
-    "web-observe-capture": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/web-observe-capture/dist/index.js"
-      ]
-    }
-  }
-}
-```
-
-*Note: Replace the path with the actual absolute path to your `dist/index.js`.*
+*Note: Playwright requires browsers to be installed. You may need to run `npx playwright install chromium` if it is not already installed.*
 
 ## 🎬 Exploratory Demo Scenario
 

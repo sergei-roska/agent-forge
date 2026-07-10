@@ -209,24 +209,29 @@ Cross-domain failure scan. Checks watchdog (exact severity match at `severity_th
 - **Security**: Parameters are passed to PHP via base64-encoded JSON, not shell interpolation. Temporary script files are always deleted after execution.
 - **Performance**: Returns structured data arrays for maximum token efficiency and standard MCP envelope compliance.
 
-## Installation & Configuration
+## 🚀 Installation & Configuration
 
-To use this server in your MCP client (e.g., Claude Desktop), add the following to your configuration file:
+### Via npm (Recommended)
 
-```json
-{
-  "mcpServers": {
-    "drupal-operations-debug": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/drupal-operations-debug/dist/index.js"
-      ]
-    }
-  }
-}
-```
+1. Install the server globally:
+   ```bash
+   npm install -g @drupal-forge/server-operations-debug
+   ```
 
-*Note: Replace the path with the actual absolute path to your `dist/index.js`.*
+2. Add the following to your MCP client configuration (e.g., `claude_desktop_config.json` or Cursor settings):
+   ```json
+   {
+     "mcpServers": {
+       "drupal-operations-debug": {
+         "command": "npx",
+         "args": [
+           "-y",
+           "@drupal-forge/server-operations-debug"
+         ]
+       }
+     }
+   }
+   ```
 
 ## Environment Variables
 

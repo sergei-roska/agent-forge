@@ -31,31 +31,29 @@ MCP server for structural editorial architecture. It explains how content is mod
 
 > **Note on `inspect_taxonomy_models`**: Use the `vocabulary` parameter (not `bundle`) to filter by a specific vocabulary machine_name.
 
-## 🚀 Quick Start (Forge)
+## 🚀 Installation & Configuration
 
-```bash
-# From the root of agent-forge
-npm install
-cd servers/drupal-content-model
-npm run build
-```
+### Via npm (Recommended)
 
-### Configure MCP Client
+1. Install the server globally:
+   ```bash
+   npm install -g @drupal-forge/server-content-model
+   ```
 
-Point your client to `dist/index.js`. The server discovers the Drupal project root automatically by walking up from `process.cwd()`, looking for `web/core`, `docroot/core`, or `core/index.php`.
-
-```json
-{
-  "mcpServers": {
-    "drupal-content-model": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/drupal-content-model/dist/index.js"
-      ]
-    }
-  }
-}
-```
+2. Add the following to your MCP client configuration (e.g., `claude_desktop_config.json` or Cursor settings):
+   ```json
+   {
+     "mcpServers": {
+       "drupal-content-model": {
+         "command": "npx",
+         "args": [
+           "-y",
+           "@drupal-forge/server-content-model"
+         ]
+       }
+     }
+   }
+   ```
 
 **Optional environment variables** (for multisite or non-default URI):
 - `DRUSH_OPTIONS_URI` or `DRUSH_URI` — passed as `--uri=` to every Drush invocation.

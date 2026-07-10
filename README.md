@@ -23,66 +23,76 @@ Deployable MCP servers:
 - `local-memory-search` - read-only local retrieval, context packs, and diagnostics.
 - `web-observe-capture` - browser screenshots and DOM/layout observation.
 
-### `standalone/`
-Exported standalone bundles for selected tools.
+## 🚀 Installation & Configuration
 
-### `specs/`
-Protocol and implementation specifications for the workspace.
+### For AI Agents (Automated Setup)
+If you are an AI Coding Agent, you can automatically install and configure all 9 MCP servers for the user:
 
-## Requirements
+1. **Install Globally**: Run the following command to install all 9 servers globally on the user's machine:
+   ```bash
+   npm install -g @drupal-forge/server-codebase-introspect @drupal-forge/server-config-intelligence @drupal-forge/server-content-model @drupal-forge/server-operations-debug @drupal-forge/server-render-theming @drupal-forge/server-runtime-inspect @local-memory/indexer @local-memory/search @drupal-forge/server-web-observe-capture
+   ```
 
-- Node.js `>=20.0.0`
-- pnpm `>=8.0.0`
+2. **Configure Client**: Read the unified JSON configuration in the next section and merge/append it into the user's MCP client configuration file (e.g. `~/.config/Claude/claude_desktop_config.json` on Linux/macOS, or `%APPDATA%/Claude/claude_desktop_config.json` on Windows).
 
-## Common Commands
+---
 
-Run from the repository root:
+### Unified MCP Configuration (via npm/npx)
 
-```bash
-pnpm install
-pnpm run build
-pnpm run test
-pnpm run typecheck
-```
-
-Additional workspace commands:
-
-```bash
-pnpm run export:standalone
-pnpm run export:standalone:all
-pnpm run verify:standalone
-```
-
-## Working With Servers
-
-Each server has its own `README.md` and `package.json` under `servers/<name>/`.
-
-Typical flow:
-1. Enter the server directory.
-2. Read the server-specific README for setup and runtime notes.
-3. Build the server and point your MCP client to the generated `dist/index.js` entry point.
-
-Example:
-
-```bash
-cd servers/drupal-runtime-inspect
-pnpm run build
-```
-
-## MCP Integration
-
-Most servers expose an MCP-compatible entry point after build. Configure your client using the server directory name and its `dist/index.js` file, for example:
+Add the following block to your MCP client configuration (e.g. `claude_desktop_config.json` or Cursor settings) to enable all 9 servers immediately without downloading the source code:
 
 ```json
 {
   "mcpServers": {
+    "drupal-codebase-introspect": {
+      "command": "npx",
+      "args": ["-y", "@drupal-forge/server-codebase-introspect"]
+    },
+    "drupal-config-intelligence": {
+      "command": "npx",
+      "args": ["-y", "@drupal-forge/server-config-intelligence"]
+    },
+    "drupal-content-model": {
+      "command": "npx",
+      "args": ["-y", "@drupal-forge/server-content-model"]
+    },
+    "drupal-operations-debug": {
+      "command": "npx",
+      "args": ["-y", "@drupal-forge/server-operations-debug"]
+    },
+    "drupal-render-theming": {
+      "command": "npx",
+      "args": ["-y", "@drupal-forge/server-render-theming"]
+    },
     "drupal-runtime-inspect": {
-      "command": "node",
-      "args": ["/absolute/path/to/agent-forge/servers/drupal-runtime-inspect/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "@drupal-forge/server-runtime-inspect"]
+    },
+    "local-memory-indexer": {
+      "command": "npx",
+      "args": ["-y", "@local-memory/indexer"],
+      "env": {
+        "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/sr/.agent-forge/local-memory-search",
+        "OLLAMA_BASE_URL": "http://127.0.0.1:11434"
+      }
+    },
+    "local-memory-search": {
+      "command": "npx",
+      "args": ["-y", "@local-memory/search"],
+      "env": {
+        "LOCAL_VECTOR_SEARCH_DATA_ROOT": "/home/sr/.agent-forge/local-memory-search",
+        "OLLAMA_BASE_URL": "http://127.0.0.1:11434"
+      }
+    },
+    "web-observe-capture": {
+      "command": "npx",
+      "args": ["-y", "@drupal-forge/server-web-observe-capture"]
     }
   }
 }
 ```
+
+*Note: For the local memory servers, ensure Ollama is running and the required models are pulled. By default, the servers use `qwen3-embedding:4b` for vector embeddings (run `ollama pull qwen3-embedding:4b`) and `granite4.1:3b` for pre-embedding chunk enrichment and query-time re-ranking (run `ollama pull granite4.1:3b`). Adjust the path in `LOCAL_VECTOR_SEARCH_DATA_ROOT` to a suitable folder on your machine.*
 
 ## License
 
