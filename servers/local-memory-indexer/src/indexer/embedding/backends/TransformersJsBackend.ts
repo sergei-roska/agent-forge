@@ -70,16 +70,28 @@ export class TransformersJsBackend implements EmbeddingBackend {
     const pipe = await this.getPipeline();
     const results: number[][] = [];
 
-    for (let i = 0; i < texts.length; i++) {
+    const SUB_BATCH_SIZE = 16;
+    for (let i = 0; i < texts.length; i += SUB_BATCH_SIZE) {
       if (this.cancelled) throw new Error('Embedding cancelled');
 
-      const output = await pipe(texts[i]!, { pooling: 'mean', normalize: true });
-      if (this.vectorDim == null && output.dims?.length) {
-        this.vectorDim = output.dims[output.dims.length - 1] ?? output.data.length;
+      const batchTexts = texts.slice(i, i + SUB_BATCH_SIZE);
+      const output = await pipe(batchTexts, { pooling: 'mean', normalize: true });
+      
+      const dims = output.dims ?? [];
+      const vectorDim = dims[dims.length - 1] ?? (output.data.length / batchTexts.length);
+      
+      if (this.vectorDim == null) {
+        this.vectorDim = vectorDim;
       }
-      results.push(Array.from(output.data));
 
-      if (i % 10 === 0) await new Promise<void>((r) => setImmediate(r));
+      const data = output.data;
+      for (let j = 0; j < batchTexts.length; j++) {
+        const start = j * vectorDim;
+        const end = start + vectorDim;
+        results.push(Array.from(data.slice(start, end)));
+      }
+
+      await new Promise<void>((r) => setImmediate(r));
     }
 
     return results;
