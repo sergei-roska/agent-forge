@@ -18,7 +18,7 @@ export interface RawChunk {
 
 // ── Language definitions ──────────────────────────────────────────────────────
 
-type LangKey = 'typescript' | 'javascript' | 'python' | 'go' | 'rust' | 'java' | 'c' | 'cpp';
+type LangKey = 'typescript' | 'javascript' | 'python' | 'go' | 'rust' | 'java' | 'c' | 'cpp' | 'php';
 
 const EXT_TO_LANG: Record<string, LangKey> = {
   ts: 'typescript', tsx: 'typescript', mts: 'typescript', cts: 'typescript',
@@ -29,6 +29,7 @@ const EXT_TO_LANG: Record<string, LangKey> = {
   java: 'java',
   c: 'c', h: 'c',
   cpp: 'cpp', cc: 'cpp', cxx: 'cpp', hpp: 'cpp', hh: 'cpp',
+  php: 'php', module: 'php', install: 'php', theme: 'php', inc: 'php',
 };
 
 interface BoundaryMatch {
@@ -118,6 +119,21 @@ const DETECTORS: Record<LangKey, BoundaryDetector> = {
       return { node_type: 'function_definition', name: m[1] };
     return null;
   },
+
+  php: (_, t) => {
+    let m = t.match(/^(?:(?:abstract|final)\s+)?class\s+(\w+)/);
+    if (m) return { node_type: 'class_declaration', name: m[1] };
+    m = t.match(/^interface\s+(\w+)/);
+    if (m) return { node_type: 'interface_declaration', name: m[1] };
+    m = t.match(/^trait\s+(\w+)/);
+    if (m) return { node_type: 'trait_declaration', name: m[1] };
+    m = t.match(/^(?:function\s+)(\w+)/);
+    if (m) return { node_type: 'function_declaration', name: m[1] };
+    m = t.match(/^(?:(?:public|protected|private|static|abstract|final)\s+)*(?:function\s+)(\w+)/);
+    if (m && !['if', 'for', 'while', 'switch', 'catch', 'constructor'].includes(m[1]!))
+      return { node_type: 'method_definition', name: m[1] };
+    return null;
+  },
 };
 
 // ── Chunker ───────────────────────────────────────────────────────────────────
@@ -193,6 +209,13 @@ export class AstChunker {
 
       if (detector) {
         for (let i = chunkStart; i <= chunkEnd; i++) {
+          const rawLine = lines[i]!;
+          const hasLeadingWhitespace = /^\s/.test(rawLine);
+          const trimmed = rawLine.trim();
+          if (!hasLeadingWhitespace && (trimmed.startsWith('function') || trimmed.startsWith('def') || trimmed.startsWith('func') || trimmed.startsWith('fn') || trimmed === '}')) {
+            currentClass = undefined;
+          }
+
           const t = lines[i]!.trimStart();
           const match = detector(lines[i]!, t);
           if (match) {

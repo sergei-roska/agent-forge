@@ -19,6 +19,7 @@ const AST_EXTENSIONS = new Set([
   'ts', 'tsx', 'mts', 'cts',
   'js', 'jsx', 'mjs', 'cjs',
   'py', 'go', 'rs', 'java', 'cpp', 'cc', 'cxx', 'hpp', 'c', 'h',
+  'php', 'module', 'install', 'theme', 'inc',
 ]);
 
 const SEMANTIC_EXTENSIONS = new Set([

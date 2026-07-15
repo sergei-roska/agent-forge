@@ -96,6 +96,88 @@ class MathService:
     const callEdge = result.edges.find(e => e.target_node_name === 'helper' && e.relationship_type === 'calls');
     expect(callEdge).toBeDefined();
   });
+
+  it('correctly extracts PHP classes, interfaces, traits, methods, functions and call/import edges', () => {
+    const phpCode = `
+<?php
+use Drupal\\Core\\Controller\\ControllerBase;
+require_once 'helper.php';
+
+interface UserInterface {
+  public function getRoles();
+}
+
+trait LoggerTrait {
+  protected function logMessage($msg) {
+    write_log($msg);
+  }
+}
+
+class UserService extends ControllerBase implements UserInterface {
+  use LoggerTrait;
+
+  public function getRoles() {
+    $roles = fetch_roles();
+    $this->logMessage('Roles fetched');
+    return $roles;
+  }
+}
+
+function fetch_roles() {
+  return ['admin'];
+}
+    `.trim();
+
+    const chunks = [
+      { chunk_id: 'c1', start_line: 1, end_line: 30 },
+    ];
+
+    const result = extractor.extract('/project/UserService.php', phpCode, chunks);
+
+    // Verify Nodes
+    const userInterfaceNode = result.nodes.find(n => n.symbol_name === 'UserInterface');
+    expect(userInterfaceNode).toBeDefined();
+    expect(userInterfaceNode!.symbol_type).toBe('class');
+
+    const loggerTraitNode = result.nodes.find(n => n.symbol_name === 'LoggerTrait');
+    expect(loggerTraitNode).toBeDefined();
+    expect(loggerTraitNode!.symbol_type).toBe('class');
+
+    const userServiceNode = result.nodes.find(n => n.symbol_name === 'UserService');
+    expect(userServiceNode).toBeDefined();
+    expect(userServiceNode!.symbol_type).toBe('class');
+
+    const logMessageNode = result.nodes.find(n => n.symbol_name === 'logMessage');
+    expect(logMessageNode).toBeDefined();
+    expect(logMessageNode!.symbol_type).toBe('method');
+    expect(logMessageNode!.symbol_path).toBe('LoggerTrait.logMessage');
+
+    const interfaceRolesNode = result.nodes.find(n => n.symbol_path === 'UserInterface.getRoles');
+    expect(interfaceRolesNode).toBeDefined();
+    expect(interfaceRolesNode!.symbol_type).toBe('method');
+
+    const getRolesNode = result.nodes.find(n => n.symbol_path === 'UserService.getRoles');
+    expect(getRolesNode).toBeDefined();
+    expect(getRolesNode!.symbol_type).toBe('method');
+
+    const fetchRolesNode = result.nodes.find(n => n.symbol_name === 'fetch_roles');
+    expect(fetchRolesNode).toBeDefined();
+    expect(fetchRolesNode!.symbol_type).toBe('function');
+    expect(fetchRolesNode!.symbol_path).toBe('fetch_roles');
+
+    // Verify Edges
+    const useEdge = result.edges.find(e => e.target_node_name === 'Drupal\\Core\\Controller\\ControllerBase' && e.relationship_type === 'imports');
+    expect(useEdge).toBeDefined();
+
+    const reqEdge = result.edges.find(e => e.target_node_name === 'helper.php' && e.relationship_type === 'imports');
+    expect(reqEdge).toBeDefined();
+
+    const callFetchEdge = result.edges.find(e => e.target_node_name === 'fetch_roles' && e.relationship_type === 'calls');
+    expect(callFetchEdge).toBeDefined();
+
+    const callLogEdge = result.edges.find(e => e.target_node_name === 'logMessage' && e.relationship_type === 'calls');
+    expect(callLogEdge).toBeDefined();
+  });
 });
 
 describe('GraphRepo', () => {

@@ -211,6 +211,7 @@ export class GraphExtractor {
 
     let currentClass: string | null = null;
     const classStartLines: Record<string, number> = {};
+    const isPhp = ['php', 'module', 'install', 'theme', 'inc'].includes(language);
 
     const findChunkId = (line: number): string | null => {
       for (const chunk of chunks) {
@@ -225,9 +226,19 @@ export class GraphExtractor {
     for (let i = 0; i < lines.length; i++) {
       const lineNum = i + 1;
       const t = lines[i]!.trim();
+      const rawLine = lines[i]!;
+
+      // Reset class scope when encountering top-level functions or scope closing braces
+      const hasLeadingWhitespace = /^\s/.test(rawLine);
+      if (!hasLeadingWhitespace && (t.startsWith('function') || t.startsWith('def') || t.startsWith('func') || t.startsWith('fn') || t === '}')) {
+        currentClass = null;
+      }
 
       // Class detector
-      let m = t.match(/^(?:class|type\s+\w+\s+struct|type\s+\w+\s+interface)\s+(\w+)/);
+      let m = isPhp
+        ? t.match(/^(?:(?:abstract|final)\s+)?(?:class|interface|trait)\s+(\w+)/)
+        : t.match(/^(?:class|type\s+\w+\s+struct|type\s+\w+\s+interface)\s+(\w+)/);
+
       if (m) {
         currentClass = m[1]!;
         classStartLines[currentClass] = lineNum;
@@ -247,12 +258,17 @@ export class GraphExtractor {
       }
 
       // Function/Method detector
-      m = t.match(/^(?:def|func|fn)\s+(\w+)/) || t.match(/^func\s+\(\s*\w+\s+\*?(\w+)\s*\)\s+(\w+)/);
+      if (isPhp) {
+        m = t.match(/^(?:(?:public|protected|private|static|abstract|final)\s+)*function\s+(?:&\s*)?(\w+)/);
+      } else {
+        m = t.match(/^(?:def|func|fn)\s+(\w+)/) || t.match(/^func\s+\(\s*\w+\s+\*?(\w+)\s*\)\s+(\w+)/);
+      }
+
       if (m) {
         let name = m[1]!;
         let parentClass = currentClass;
 
-        if (m[2]) {
+        if (!isPhp && m[2]) {
           // Go method receiver syntax: func (r *MyClass) MyMethod()
           parentClass = m[1]!;
           name = m[2]!;
@@ -281,7 +297,10 @@ export class GraphExtractor {
       const t = lines[i]!.trim();
 
       // Simple import detector
-      let m = t.match(/^(?:import|from)\s+([\w./_-]+)/) || t.match(/require\(['"]([\w./_-]+)['"]\)/);
+      let m = isPhp
+        ? t.match(/^use\s+([\w\\_]+)/) || t.match(/^(?:require|require_once|include|include_once)\s+['"]([\w./_-]+)['"]/)
+        : t.match(/^(?:import|from)\s+([\w./_-]+)/) || t.match(/require\(['"]([\w./_-]+)['"]\)/);
+
       if (m) {
         const source = m[1]!;
         // Ensure file node exists
@@ -314,7 +333,8 @@ export class GraphExtractor {
       const callMatches = t.matchAll(/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g);
       for (const callMatch of callMatches) {
         const targetName = callMatch[1]!;
-        if (['if', 'for', 'while', 'switch', 'catch', 'def', 'func', 'fn', 'import'].includes(targetName)) {
+        const phpKeywords = ['function', 'use', 'array', 'echo', 'print', 'require', 'require_once', 'include', 'include_once', 'empty', 'isset', 'unset', 'eval', 'list'];
+        if (['if', 'for', 'while', 'switch', 'catch', 'def', 'func', 'fn', 'import', ...phpKeywords].includes(targetName)) {
           continue;
         }
 
