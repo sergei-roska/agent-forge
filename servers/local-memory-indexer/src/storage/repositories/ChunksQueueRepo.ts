@@ -211,4 +211,17 @@ export class ChunksQueueRepo {
       )
       .run(enrichedText, now, chunkId);
   }
+
+  setEnrichedTextBatch(updates: { chunkId: string; enrichedText: string }[]): void {
+    if (updates.length === 0) return;
+    const now = Date.now();
+    const stmt = this.db.prepare(
+      `UPDATE chunks_queue SET enriched_text = ?, updated_at = ? WHERE chunk_id = ?`,
+    );
+    withImmediate(this.db, () => {
+      for (const { chunkId, enrichedText } of updates) {
+        stmt.run(enrichedText, now, chunkId);
+      }
+    });
+  }
 }
