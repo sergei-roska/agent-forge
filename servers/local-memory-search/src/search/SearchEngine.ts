@@ -65,7 +65,9 @@ export class SearchEngine {
   /** Open (and memoize) a read-only LanceDB handle for the project. */
   async lance(projectPath: string): Promise<LanceReader | null> {
     if (!this.lanceCache.has(projectPath)) {
-      this.lanceCache.set(projectPath, await LanceReader.open(projectPath));
+      const reader = await LanceReader.open(projectPath);
+      if (reader) this.lanceCache.set(projectPath, reader);
+      return reader;
     }
     return this.lanceCache.get(projectPath) ?? null;
   }
@@ -73,7 +75,9 @@ export class SearchEngine {
   /** Open (and memoize) a read-only SQLite handle for the project. */
   sqlite(projectPath: string): SqliteReader | null {
     if (!this.sqliteCache.has(projectPath)) {
-      this.sqliteCache.set(projectPath, SqliteReader.open(projectPath));
+      const reader = SqliteReader.open(projectPath);
+      if (reader) this.sqliteCache.set(projectPath, reader);
+      return reader;
     }
     return this.sqliteCache.get(projectPath) ?? null;
   }
@@ -117,8 +121,10 @@ export class SearchEngine {
     const lance = await this.lance(params.projectPath);
     const sqlite = this.sqlite(params.projectPath);
 
+    let vectorCount = 0;
     if (sqlite) {
       const stats = sqlite.stats(params.projectPath);
+      vectorCount = stats.vector_count;
       if (stats.pending_chunks > 0) {
         warnings.push(
           `EMBEDDING_IN_PROGRESS: ${stats.pending_chunks} chunk(s) pending embedding. ` +
@@ -132,7 +138,7 @@ export class SearchEngine {
       // §5.4 INDEX_UNAVAILABLE — SQLite keyword fallback.
       outcome = this.sqliteFallback(sqlite, params, normalized.terms, warnings, topK);
     } else {
-      outcome = await this.lanceRetrieve(lance, sqlite, params, normalized, where, warnings, topK);
+      outcome = await this.lanceRetrieve(lance, sqlite, params, normalized, where, warnings, topK, vectorCount);
     }
 
     log.info('retrieve complete', {
@@ -186,6 +192,7 @@ export class SearchEngine {
     where: string,
     warnings: string[],
     topK: number,
+    vectorCount: number,
   ): Promise<RetrieveOutcome> {
     // Empty-index check (§5.3).
     let total = 0;
@@ -196,7 +203,7 @@ export class SearchEngine {
     }
     if (total === 0) {
       // Distinguish "no rows for project" from "rows excluded by schema filter".
-      await this.maybeWarnSchemaMismatch(lance, sqlite, params.projectPath, where, warnings);
+      await this.maybeWarnSchemaMismatch(lance, vectorCount, params.projectPath, where, warnings);
       const emptyMode: SearchMode = warnings.some((w) => w.startsWith('schema_version_mismatch'))
         ? 'keyword_only'
         : 'hybrid';
@@ -210,16 +217,19 @@ export class SearchEngine {
       };
     }
 
-    await this.maybeWarnSchemaMismatch(lance, sqlite, params.projectPath, where, warnings, total);
+    await this.maybeWarnSchemaMismatch(lance, vectorCount, params.projectPath, where, warnings, total);
 
     let effectiveAlpha = params.alpha;
     const wantVector = params.legs !== 'keyword' && effectiveAlpha > 0;
     const wantFts = params.legs !== 'semantic';
 
-    // ── Vector leg (§2.3 step 2a, §5.1 / §5.5 degradation) ──
+    // ── Execute legs concurrently ──
     let vectorHits: RawHit[] = [];
     let vectorRan = false;
-    if (wantVector) {
+    let ftsHits: RawHit[] = [];
+    let ftsRan = false;
+
+    const runVector = async () => {
       try {
         const { vector } = await this.embedder.embed(normalized.semantic);
         vectorHits = await this.vectorWithFallback(lance, vector, where, topK, warnings);
@@ -234,12 +244,9 @@ export class SearchEngine {
         }
         effectiveAlpha = 0; // §5.5 — force keyword-only fusion.
       }
-    }
+    };
 
-    // ── FTS leg (§2.3 step 2b, §5.7 fallback) ──
-    let ftsHits: RawHit[] = [];
-    let ftsRan = false;
-    if (wantFts || !vectorRan) {
+    const runFts = async () => {
       try {
         ftsHits = await lance.ftsSearch(normalized.keyword || normalized.semantic, where, topK);
         ftsRan = true;
@@ -256,6 +263,17 @@ export class SearchEngine {
           }
         }
       }
+    };
+
+    const promises: Promise<void>[] = [];
+    if (wantVector) promises.push(runVector());
+    if (wantFts) promises.push(runFts());
+
+    await Promise.all(promises);
+
+    // If semantic-only but vector failed, fallback to FTS (§2.3 step 2b, §5.7 fallback)
+    if (!wantFts && !vectorRan) {
+      await runFts();
     }
 
     // If the semantic leg is disabled, treat fusion as keyword-only.
@@ -311,13 +329,12 @@ export class SearchEngine {
   /** Emit a schema-mismatch warning if >10% of a project's vectors are excluded (§5.2). */
   private async maybeWarnSchemaMismatch(
     lance: LanceReader,
-    sqlite: SqliteReader | null,
+    declaredTotal: number,
     projectPath: string,
     where: string,
     warnings: string[],
     matched?: number,
   ): Promise<void> {
-    const declaredTotal = sqlite?.stats(projectPath).vector_count ?? 0;
     if (declaredTotal <= 0) return;
     const compatible = matched ?? (await lance.count(where).catch(() => 0));
     const excluded = declaredTotal - compatible;

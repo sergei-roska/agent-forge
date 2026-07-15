@@ -131,17 +131,35 @@ export async function buildContextPack(
     return true;
   };
 
+  // ── Fetch neighbors concurrently ──
+  const neighborsMap = new Map<string, { before: ChunkRow[]; after: ChunkRow[] }>();
+  if (params.includeNeighbors && params.neighborHops > 0) {
+    const promises: Promise<void>[] = [];
+    for (const fp of fileOrder) {
+      for (const primary of primaryByFile.get(fp)!) {
+        promises.push(
+          getNeighbors(
+            engine, params.projectPath, primary.row.chunk_id,
+            params.neighborHops, params.neighborHops,
+          ).then(nb => {
+            neighborsMap.set(primary.row.chunk_id, nb);
+          })
+        );
+      }
+    }
+    await Promise.all(promises);
+  }
+
   outer: for (const fp of fileOrder) {
     for (const primary of primaryByFile.get(fp)!) {
       if (!pushExcerpt(primary.row, primary.score, false)) { truncated = true; break outer; }
 
       if (params.includeNeighbors && params.neighborHops > 0) {
-        const nb = await getNeighbors(
-          engine, params.projectPath, primary.row.chunk_id,
-          params.neighborHops, params.neighborHops,
-        );
-        for (const n of [...nb.before, ...nb.after]) {
-          if (!pushExcerpt(n, primary.score, true)) { truncated = true; break outer; }
+        const nb = neighborsMap.get(primary.row.chunk_id);
+        if (nb) {
+          for (const n of [...nb.before, ...nb.after]) {
+            if (!pushExcerpt(n, primary.score, true)) { truncated = true; break outer; }
+          }
         }
       }
     }

@@ -80,10 +80,15 @@ export class QueryEmbedder {
   /** Health probe used by health_check (does not throw). */
   async probe(): Promise<{ available: boolean; backend?: EmbedderBackend }> {
     try {
-      const res = await this.embed('healthcheck');
-      return { available: true, backend: res.backend };
+      const res = await fetch(`${this.ollamaBaseUrl}/api/version`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(3000),
+      });
+      if (res.ok) return { available: true, backend: 'ollama' };
     } catch {
-      return { available: false };
+      // fall through to transformers
     }
+    // transformers is always available locally
+    return { available: true, backend: 'transformers_js' };
   }
 }

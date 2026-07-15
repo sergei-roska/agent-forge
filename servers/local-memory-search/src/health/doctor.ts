@@ -219,7 +219,18 @@ async function checkFtsIndex(lance: LanceReader, ctx: DoctorContext): Promise<Do
 
 async function checkStaleChunks(lance: LanceReader, ctx: DoctorContext): Promise<DoctorCheck> {
   const filePaths = await lance.distinctFilePaths(buildWherePredicate(ctx.projectPath));
-  const staleFiles = filePaths.filter((f) => !fs.existsSync(f));
+  
+  const existChecks = await Promise.all(
+    filePaths.map(async (f) => {
+      try {
+        await fs.promises.access(f, fs.constants.F_OK);
+        return true;
+      } catch {
+        return false;
+      }
+    })
+  );
+  const staleFiles = filePaths.filter((_, i) => !existChecks[i]);
 
   if (staleFiles.length === 0) {
     return { name: 'stale_chunks', status: 'healthy', message: 'No stale chunks from deleted files' };

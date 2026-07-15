@@ -86,7 +86,18 @@ export interface IndexStatsSnapshot {
  * recency mtime, and index statistics. Never writes.
  */
 export class SqliteReader {
+  private readonly stmts = new Map<string, Database.Statement>();
+
   private constructor(private readonly db: Database.Database) {}
+
+  private getStmt(key: string, sql: string): Database.Statement {
+    let stmt = this.stmts.get(key);
+    if (!stmt) {
+      stmt = this.db.prepare(sql);
+      this.stmts.set(key, stmt);
+    }
+    return stmt;
+  }
 
   static exists(projectPath: string): boolean {
     return fs.existsSync(sqliteDbPath(projectPath));
@@ -122,14 +133,12 @@ export class SqliteReader {
     const rows = this.db
       .prepare(
         `SELECT * FROM chunks_queue
-         WHERE project_path = ? AND schema_version = ? AND (${likeClause})
-         LIMIT ?`,
+         WHERE project_path = ? AND schema_version = ? AND (${likeClause})`
       )
       .all(
         projectPath,
         SCHEMA_VERSION,
-        ...params,
-        Math.max(limit * 4, limit),
+        ...params
       ) as QueueRow[];
 
     const hits = rows.map((r) => {
@@ -163,8 +172,7 @@ export class SqliteReader {
 
   /** Fetch a single chunk from the queue by id (get_chunk fallback). */
   getChunkById(projectPath: string, chunkId: string): ChunkRow | null {
-    const r = this.db
-      .prepare(
+    const r = this.getStmt('getChunkById',
         `SELECT * FROM chunks_queue WHERE project_path = ? AND chunk_id = ? AND schema_version = ?`,
       )
       .get(projectPath, chunkId, SCHEMA_VERSION) as QueueRow | undefined;
@@ -173,8 +181,7 @@ export class SqliteReader {
 
   /** All queue chunks for a file ordered by start_line (neighbor fallback). */
   chunksForFile(projectPath: string, filePath: string): ChunkRow[] {
-    const rows = this.db
-      .prepare(
+    const rows = this.getStmt('chunksForFile',
         `SELECT * FROM chunks_queue
          WHERE project_path = ? AND file_path = ? AND schema_version = ?
          ORDER BY start_line ASC`,
@@ -185,8 +192,7 @@ export class SqliteReader {
 
   /** Recency mtime for a file from file_fingerprints (Spec 08.2 §3 recency). */
   mtimeForFile(projectPath: string, filePath: string): number | null {
-    const r = this.db
-      .prepare(
+    const r = this.getStmt('mtimeForFile',
         `SELECT mtime_ns FROM file_fingerprints WHERE project_path = ? AND file_path = ?`,
       )
       .get(projectPath, filePath) as { mtime_ns: number | null } | undefined;
@@ -195,28 +201,26 @@ export class SqliteReader {
 
   /** Aggregate index statistics for index_status / doctor_index / health_check. */
   stats(projectPath: string): IndexStatsSnapshot {
-    const statsRow = this.db
-      .prepare('SELECT vector_count, last_ivf_rebuild_at FROM index_stats WHERE project_path = ?')
+    const statsRow = this.getStmt('stats_index', 'SELECT vector_count, last_ivf_rebuild_at FROM index_stats WHERE project_path = ?')
       .get(projectPath) as { vector_count: number; last_ivf_rebuild_at: number } | undefined;
 
-    const files = this.db
-      .prepare('SELECT COUNT(*) AS n, MAX(last_indexed_at) AS last FROM file_fingerprints WHERE project_path = ?')
+    const files = this.getStmt('stats_files', 'SELECT COUNT(*) AS n, MAX(last_indexed_at) AS last FROM file_fingerprints WHERE project_path = ?')
       .get(projectPath) as { n: number; last: number | null };
 
-    const pending = this.db
-      .prepare(`SELECT COUNT(*) AS n FROM chunks_queue WHERE project_path = ? AND embedding_status = 'pending'`)
-      .get(projectPath) as { n: number };
-
-    const embedded = this.db
-      .prepare(`SELECT COUNT(*) AS n FROM chunks_queue WHERE project_path = ? AND embedding_status = 'embedded'`)
-      .get(projectPath) as { n: number };
+    const chunks = this.getStmt('stats_chunks', `
+      SELECT 
+        SUM(CASE WHEN embedding_status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN embedding_status = 'embedded' THEN 1 ELSE 0 END) as embedded
+      FROM chunks_queue 
+      WHERE project_path = ?
+    `).get(projectPath) as { pending: number | null; embedded: number | null } | undefined;
 
     return {
       vector_count:        statsRow?.vector_count ?? 0,
       last_ivf_rebuild_at: statsRow?.last_ivf_rebuild_at ?? 0,
       indexed_files:       files.n ?? 0,
-      pending_chunks:      pending.n ?? 0,
-      embedded_chunks:     embedded.n ?? 0,
+      pending_chunks:      chunks?.pending ?? 0,
+      embedded_chunks:     chunks?.embedded ?? 0,
       last_indexed_at:     files.last ?? null,
     };
   }
@@ -228,8 +232,7 @@ export class SqliteReader {
    * independent of embedding status (Task 3.5 — partial index awareness).
    */
   countChunksWithText(projectPath: string): number {
-    const row = this.db
-      .prepare(
+    const row = this.getStmt('countChunksWithText',
         `SELECT COUNT(*) AS n FROM chunks_queue
          WHERE project_path = ? AND raw_text IS NOT NULL AND raw_text != ''`,
       )
@@ -238,15 +241,13 @@ export class SqliteReader {
   }
 
   countAllChunks(projectPath: string): number {
-    const row = this.db
-      .prepare(`SELECT COUNT(*) AS n FROM chunks_queue WHERE project_path = ?`)
+    const row = this.getStmt('countAllChunks', `SELECT COUNT(*) AS n FROM chunks_queue WHERE project_path = ?`)
       .get(projectPath) as { n: number };
     return row.n;
   }
 
   distinctSchemaVersions(projectPath: string): string[] {
-    const rows = this.db
-      .prepare(
+    const rows = this.getStmt('distinctSchemaVersions',
         `SELECT DISTINCT schema_version FROM chunks_queue
          WHERE project_path = ? AND schema_version IS NOT NULL`,
       )
@@ -287,8 +288,7 @@ export class SqliteReader {
       visited.add(name);
 
       try {
-        const rows = this.db
-          .prepare(
+        const rows = this.getStmt('findCallers',
             `SELECT ge.*, gn.symbol_name as source_name, gn.symbol_type as source_type, gn.symbol_path as source_path, gn.file_path
              FROM graph_edges ge
              JOIN graph_nodes gn ON ge.source_node_id = gn.node_id
@@ -324,8 +324,7 @@ export class SqliteReader {
 
     try {
       // Look up the node ID for symbolPath first
-      const rootNode = this.db
-        .prepare(`SELECT node_id, symbol_name FROM graph_nodes WHERE project_path = ? AND (symbol_path = ? OR symbol_name = ?)`)
+      const rootNode = this.getStmt('findCallees_root', `SELECT node_id, symbol_name FROM graph_nodes WHERE project_path = ? AND (symbol_path = ? OR symbol_name = ?)`)
         .get(projectPath, symbolPath, symbolPath) as { node_id: string; symbol_name: string } | undefined;
 
       if (!rootNode) return [];
@@ -339,8 +338,7 @@ export class SqliteReader {
         if (visited.has(nodeId) || currentDepth > depth) continue;
         visited.add(nodeId);
 
-        const rows = this.db
-          .prepare(
+        const rows = this.getStmt('findCallees_edges',
             `SELECT ge.*, gn.symbol_path as target_path, gn.symbol_type as target_type, gn.file_path as target_file_path
              FROM graph_edges ge
              LEFT JOIN graph_nodes gn ON ge.target_node_id = gn.node_id
@@ -385,7 +383,7 @@ export class SqliteReader {
         query += ` AND gn.file_path = ?`;
         params.push(filePath);
       }
-      return this.db.prepare(query).all(...params) as any[];
+      return this.getStmt('getImportGraph_' + (filePath ? 'withFile' : 'all'), query).all(...params) as any[];
     } catch (err) {
       console.warn('getImportGraph failed:', err);
       return [];
@@ -398,8 +396,7 @@ export class SqliteReader {
       const visited = new Set<string>();
 
       // Resolve source node(s)
-      const sources = this.db
-        .prepare(`SELECT node_id, symbol_path FROM graph_nodes WHERE project_path = ? AND (symbol_path = ? OR symbol_name = ?)`)
+      const sources = this.getStmt('tracePath_sources', `SELECT node_id, symbol_path FROM graph_nodes WHERE project_path = ? AND (symbol_path = ? OR symbol_name = ?)`)
         .all(projectPath, sourceSymbol, sourceSymbol) as { node_id: string; symbol_path: string }[];
 
       for (const src of sources) {
@@ -412,8 +409,7 @@ export class SqliteReader {
         visited.add(current);
 
         // Get current symbol name/path
-        const nodeInfo = this.db
-          .prepare(`SELECT symbol_path, symbol_name FROM graph_nodes WHERE node_id = ?`)
+        const nodeInfo = this.getStmt('tracePath_nodeInfo', `SELECT symbol_path, symbol_name FROM graph_nodes WHERE node_id = ?`)
           .get(current) as { symbol_path: string; symbol_name: string } | undefined;
         
         if (!nodeInfo) continue;
@@ -422,8 +418,7 @@ export class SqliteReader {
           return currentPath;
         }
 
-        const outgoing = this.db
-          .prepare(
+        const outgoing = this.getStmt('tracePath_outgoing',
             `SELECT ge.target_node_id, ge.target_node_name, gn.symbol_path
              FROM graph_edges ge
              LEFT JOIN graph_nodes gn ON ge.target_node_id = gn.node_id
