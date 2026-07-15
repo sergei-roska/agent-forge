@@ -207,7 +207,7 @@ export class EmbedConsumer {
       });
 
       try {
-        const enrichResults = await this.enrichBatch(batch, enricher);
+        const enrichResults = await this.enrichBatch(batch, enricher, cfg.enrichConcurrency);
         const vectors       = await this.embedBatch(batch, enrichResults, backend, { timeoutMs: 60_000 });
         await this.upsertBatch(table, batch, vectors, enrichResults);
         this.markEmbedded(batch, result.chunks_embedded);
@@ -303,18 +303,39 @@ export class EmbedConsumer {
   private async enrichBatch(
     batch: ChunkQueueRow[],
     enricher: GraniteEnricher | null,
+    concurrency: number,
   ): Promise<(ReturnType<GraniteEnricher['enrich']> extends Promise<infer T> ? T : never)[]> {
     if (!enricher) return batch.map(() => null);
 
-    const results = [];
-    for (const chunk of batch) {
-      let meta = {};
-      try { meta = JSON.parse(chunk.ast_metadata ?? '{}'); } catch { /* noop */ }
-      const r = await enricher.enrich(chunk.raw_text ?? '', meta as never);
-      if (r) this.chunks.setEnrichedText(chunk.chunk_id, r.enriched_text);
-      results.push(r);
+    const results = new Array(batch.length).fill(null);
+    const updates: { chunkId: string; enrichedText: string }[] = [];
+
+    let currentIndex = 0;
+    const worker = async () => {
+      while (currentIndex < batch.length) {
+        const index = currentIndex++;
+        const chunk = batch[index]!;
+        let meta = {};
+        try { meta = JSON.parse(chunk.ast_metadata ?? '{}'); } catch { /* noop */ }
+        const r = await enricher.enrich(chunk.raw_text ?? '', meta as never);
+        if (r) {
+          updates.push({ chunkId: chunk.chunk_id, enrichedText: r.enriched_text });
+        }
+        results[index] = r;
+      }
+    };
+
+    const workers = Array.from(
+      { length: Math.min(concurrency, batch.length) },
+      () => worker()
+    );
+    await Promise.all(workers);
+
+    if (updates.length > 0) {
+      this.chunks.setEnrichedTextBatch(updates);
     }
-    return results;
+
+    return results as any;
   }
 
   private async embedBatch(
