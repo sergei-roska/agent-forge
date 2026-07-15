@@ -98,4 +98,14 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_source ON graph_edges (source_node_id
 CREATE INDEX IF NOT EXISTS idx_graph_edges_target ON graph_edges (target_node_name);
     `.trim(),
   },
+  {
+    name: '003_indexes.sql',
+    sql: `
+CREATE INDEX IF NOT EXISTS idx_chunks_queue_file
+  ON chunks_queue(project_path, file_path);
+
+CREATE INDEX IF NOT EXISTS idx_graph_nodes_file
+  ON graph_nodes(project_path, file_path);
+    `.trim(),
+  },
 ];
