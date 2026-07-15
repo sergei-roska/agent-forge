@@ -13,6 +13,7 @@ export interface IndexerConfig {
   chunkMaxLines: number;
   lockTtlMs: number;
   schemaVersion: string;
+  enrichConcurrency: number;
 }
 
 export function getConfig(): IndexerConfig {
@@ -31,5 +32,6 @@ export function getConfig(): IndexerConfig {
     chunkMaxLines: DEFAULT_CHUNK_MAX_LINES,
     lockTtlMs: LOCK_TTL_MS,
     schemaVersion: SCHEMA_VERSION,
+    enrichConcurrency: Number(process.env['ENRICH_CONCURRENCY'] ?? 4),
   };
 }
