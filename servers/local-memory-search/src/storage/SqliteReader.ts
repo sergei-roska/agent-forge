@@ -156,7 +156,8 @@ export class SqliteReader {
         if (func.includes(t) || cls.includes(t)) weight += 3;
         
         const isExactIdentifier = func === t || cls === t;
-        const isExactPath = path.endsWith(`/${t}`) || path === t || new RegExp(`/${t}\\.[a-z0-9]+$`).test(path);
+        const escapedT = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const isExactPath = path.endsWith(`/${t}`) || path === t || new RegExp(`/${escapedT}\\.[a-z0-9]+$`).test(path);
         if (isExactIdentifier) weight += 10;
         if (isExactPath) weight += 10;
 

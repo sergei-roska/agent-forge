@@ -254,8 +254,9 @@ export class LanceReader {
     functionName: string | undefined,
     limit: number,
   ): Promise<ChunkRow[]> {
-    const safe = filePath.replace(/'/g, "''");
-    let predicate = `${where} AND (file_path = '${safe}' OR file_path LIKE '%${safe}')`;
+    const safeExact = filePath.replace(/'/g, "''");
+    const safeLike = filePath.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_').replace(/'/g, "''");
+    let predicate = `${where} AND (file_path = '${safeExact}' OR file_path LIKE '%${safeLike}')`;
     if (functionName) predicate += ` AND function_name = '${functionName.replace(/'/g, "''")}'`;
     const rows = (await withReadLockRetry(() =>
       this.table.query().where(predicate).select([...PROJECTION_COLUMNS]).limit(limit).toArray(),

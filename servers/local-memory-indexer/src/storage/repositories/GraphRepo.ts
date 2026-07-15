@@ -78,7 +78,7 @@ export class GraphRepo {
     // Attempt to link unresolved target_node_id where target_node_name is unique in the project
     withImmediate(this.db, () => {
       // Find symbols that are uniquely named within the project path
-      this.db.exec(
+      this.db.prepare(
         `UPDATE graph_edges
          SET target_node_id = (
            SELECT node_id FROM graph_nodes
@@ -86,8 +86,8 @@ export class GraphRepo {
              AND graph_nodes.symbol_name = graph_edges.target_node_name
            LIMIT 1
          )
-         WHERE project_path = '${projectPath}' AND target_node_id IS NULL`
-      );
+         WHERE project_path = ? AND target_node_id IS NULL`
+      ).run(projectPath);
     });
   }
 }
