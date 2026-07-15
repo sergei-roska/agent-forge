@@ -35,69 +35,110 @@ export class FingerprintDiffer {
   }
 
   async diff(files: FileRecord[], force = false): Promise<DiffResult[]> {
-    const pending: DiffResult[] = [];
+    const storedFps = this.fps.listByProject(this.projectPath);
+    const storedMap = new Map<string, FileFingerprint>();
+    for (const fp of storedFps) {
+      storedMap.set(fp.file_path, fp);
+    }
 
+    const results: DiffResult[] = [];
+    const pendingHash: { file: FileRecord; stored: FileFingerprint | undefined }[] = [];
+    const upserts: FileFingerprint[] = [];
+    
+    // Fast path: size + mtime match
     for (const file of files) {
-      const result = await this.classifyFile(file, force);
-      pending.push(result);
+      const stored = storedMap.get(file.file_path);
+      
+      if (!force && stored && this.quickMatch(stored, file)) {
+        upserts.push({
+          ...stored,
+          status: 'up_to_date',
+          last_indexed_at: Date.now(),
+        });
+        results.push({ file_path: file.file_path, status: 'up_to_date' });
+      } else {
+        pendingHash.push({ file, stored });
+      }
     }
 
-    return pending;
-  }
+    // Slow path: parallel hash computation
+    const CONCURRENCY = 16;
+    let currentIndex = 0;
+    const now = Date.now();
+    const stalePaths: string[] = [];
 
-  private async classifyFile(file: FileRecord, force: boolean): Promise<DiffResult> {
-    const stored = this.fps.getByPath(this.projectPath, file.file_path);
+    const worker = async () => {
+      while (currentIndex < pendingHash.length) {
+        const index = currentIndex++;
+        const { file, stored } = pendingHash[index]!;
 
-    if (!force && stored && this.quickMatch(stored, file)) {
-      // Fast path: size + mtime match — trust without hashing.
-      // Still update last_indexed_at so we know it was seen this run.
-      this.fps.updateStatus(this.projectPath, file.file_path, 'up_to_date');
-      return { file_path: file.file_path, status: 'up_to_date' };
-    }
+        let sha256: string;
+        try {
+          const fp = await computeFingerprint(file.file_path);
+          sha256 = fp.sha256;
+        } catch {
+          // Unreadable file — skip silently
+          results.push({ file_path: file.file_path, status: 'up_to_date' });
+          continue;
+        }
 
-    // Compute full hash to confirm change (or for new file).
-    let sha256: string;
-    try {
-      const fp = await computeFingerprint(file.file_path);
-      sha256 = fp.sha256;
-    } catch {
-      // Unreadable file — skip silently.
-      return { file_path: file.file_path, status: 'up_to_date' };
-    }
+        if (!force && stored?.content_hash_sha256 === sha256) {
+          upserts.push({
+            project_path: this.projectPath,
+            file_path: file.file_path,
+            size_bytes: file.size_bytes,
+            mtime_ns: Number(file.mtime_ns),
+            content_hash_sha256: sha256,
+            status: 'up_to_date',
+            last_indexed_at: now,
+            schema_version: SCHEMA_VERSION,
+          });
+          results.push({ file_path: file.file_path, status: 'up_to_date' });
+        } else {
+          upserts.push({
+            project_path: this.projectPath,
+            file_path: file.file_path,
+            size_bytes: file.size_bytes,
+            mtime_ns: Number(file.mtime_ns),
+            content_hash_sha256: sha256,
+            status: 'pending_parse',
+            retry_count: 0,
+            last_indexed_at: now,
+            schema_version: SCHEMA_VERSION,
+          });
+          stalePaths.push(file.file_path);
+          results.push({
+            file_path: file.file_path,
+            status: stored ? 'pending_parse' : 'new'
+          });
+        }
+      }
+    };
 
-    if (!force && stored?.content_hash_sha256 === sha256) {
-      // Content identical despite mtime drift (e.g. checkout) → up_to_date.
-      this.fps.upsert({
-        project_path: this.projectPath,
-        file_path: file.file_path,
-        size_bytes: file.size_bytes,
-        mtime_ns: Number(file.mtime_ns),
-        content_hash_sha256: sha256,
-        status: 'up_to_date',
-        last_indexed_at: Date.now(),
-        schema_version: SCHEMA_VERSION,
-      });
-      return { file_path: file.file_path, status: 'up_to_date' };
-    }
+    const workers = Array.from(
+      { length: Math.min(CONCURRENCY, pendingHash.length) },
+      () => worker()
+    );
+    await Promise.all(workers);
 
-    // File is new or changed — upsert fingerprint + mark old chunks stale.
+    // Apply batch updates inside a single transaction
     withImmediate(this.db, () => {
-      this.fps.upsert({
-        project_path: this.projectPath,
-        file_path: file.file_path,
-        size_bytes: file.size_bytes,
-        mtime_ns: Number(file.mtime_ns),
-        content_hash_sha256: sha256,
-        status: 'pending_parse',
-        retry_count: 0,
-        last_indexed_at: Date.now(),
-        schema_version: SCHEMA_VERSION,
-      });
-      this.chunks.markStaleByFile(this.projectPath, file.file_path);
+      for (const fp of upserts) {
+        this.fps.upsert(fp);
+      }
+      if (stalePaths.length > 0) {
+        const stmt = this.db.prepare(
+          `UPDATE chunks_queue
+           SET embedding_status = 'stale', updated_at = ?
+           WHERE project_path = ? AND file_path = ? AND embedding_status != 'stale'`
+        );
+        for (const fp of stalePaths) {
+          stmt.run(now, this.projectPath, fp);
+        }
+      }
     });
 
-    const status: FileStatus = stored ? 'pending_parse' : 'new';
-    return { file_path: file.file_path, status };
+    return results;
   }
 
   private quickMatch(stored: FileFingerprint, file: FileRecord): boolean {

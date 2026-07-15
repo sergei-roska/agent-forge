@@ -138,6 +138,21 @@ export class ChunksQueueRepo {
       .run(now, projectPath, filePath);
   }
 
+  markStaleByFileBatch(projectPath: string, filePaths: string[]): void {
+    if (filePaths.length === 0) return;
+    const now = Date.now();
+    const stmt = this.db.prepare(
+      `UPDATE chunks_queue
+       SET embedding_status = 'stale', updated_at = ?
+       WHERE project_path = ? AND file_path = ? AND embedding_status != 'stale'`
+    );
+    withImmediate(this.db, () => {
+      for (const fp of filePaths) {
+        stmt.run(now, projectPath, fp);
+      }
+    });
+  }
+
   countPending(projectPath: string): number {
     const row = this.db
       .prepare(
