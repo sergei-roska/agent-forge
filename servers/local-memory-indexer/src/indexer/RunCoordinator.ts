@@ -47,6 +47,8 @@ export class RunCoordinator {
   private readonly activeConsumers = new Map<string, EmbedConsumer>();
   /** runId → projectPath (for getStatus without projectPath) */
   private readonly runProjectIndex = new Map<string, string>();
+  /** backend_used → capabilities (prevent warmup on every status poll) */
+  private readonly capabilitiesCache = new Map<string, GetIndexingStatusOutput['backend_capabilities']>();
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -299,16 +301,21 @@ export class RunCoordinator {
 
     let backend_capabilities: GetIndexingStatusOutput['backend_capabilities'];
     if (run.backend_used === 'ollama' || run.backend_used === 'transformers_js') {
-      const caps = await probeBackendCapabilities(run.backend_used);
-      if (caps) {
-        backend_capabilities = {
-          name: caps.name,
-          model: caps.model,
-          gpu_accelerated: caps.gpuAccelerated,
-          max_batch_size: caps.maxBatchSize,
-          dimensions: caps.dimensions,
-          estimated_throughput: caps.estimatedThroughput,
-        };
+      if (this.capabilitiesCache.has(run.backend_used)) {
+        backend_capabilities = this.capabilitiesCache.get(run.backend_used);
+      } else {
+        const caps = await probeBackendCapabilities(run.backend_used);
+        if (caps) {
+          backend_capabilities = {
+            name: caps.name,
+            model: caps.model,
+            gpu_accelerated: caps.gpuAccelerated,
+            max_batch_size: caps.maxBatchSize,
+            dimensions: caps.dimensions,
+            estimated_throughput: caps.estimatedThroughput,
+          };
+          this.capabilitiesCache.set(run.backend_used, backend_capabilities);
+        }
       }
     }
 
