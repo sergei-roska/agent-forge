@@ -4,6 +4,12 @@ import crypto from 'node:crypto';
 import ts from 'typescript';
 import type { GraphNodeRow, GraphEdgeRow } from '../../storage/repositories/GraphRepo.js';
 
+const IGNORED_CALL_KEYWORDS = new Set([
+  'if', 'for', 'while', 'switch', 'catch', 'def', 'func', 'fn', 'import',
+  'function', 'use', 'array', 'echo', 'print', 'require', 'require_once', 
+  'include', 'include_once', 'empty', 'isset', 'unset', 'eval', 'list'
+]);
+
 function sha256(str: string): string {
   return crypto.createHash('sha256').update(str).digest('hex');
 }
@@ -290,6 +296,11 @@ export class GraphExtractor {
       }
     }
 
+    // Prepare for binary search: sort non-file nodes by start_line
+    const sortedNodes = nodes
+      .filter(n => n.symbol_type !== 'file')
+      .sort((a, b) => a.start_line - b.start_line);
+
     // 2. Second Pass: Extract Edges (Calls & Imports)
     const fileNodeId = sha256(this.projectPath + filePath + 'file');
     for (let i = 0; i < lines.length; i++) {
@@ -333,13 +344,27 @@ export class GraphExtractor {
       const callMatches = t.matchAll(/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g);
       for (const callMatch of callMatches) {
         const targetName = callMatch[1]!;
-        const phpKeywords = ['function', 'use', 'array', 'echo', 'print', 'require', 'require_once', 'include', 'include_once', 'empty', 'isset', 'unset', 'eval', 'list'];
-        if (['if', 'for', 'while', 'switch', 'catch', 'def', 'func', 'fn', 'import', ...phpKeywords].includes(targetName)) {
+        if (IGNORED_CALL_KEYWORDS.has(targetName)) {
           continue;
         }
 
-        // Find which node encompasses this call line
-        const sourceNode = nodes.find(n => n.symbol_type !== 'file' && lineNum >= n.start_line && lineNum <= n.end_line + 10);
+        // Binary search for the node that encompasses this call line
+        let sourceNode: GraphNodeRow | undefined;
+        let left = 0;
+        let right = sortedNodes.length - 1;
+        while (left <= right) {
+          const mid = (left + right) >> 1;
+          const n = sortedNodes[mid]!;
+          if (lineNum >= n.start_line && lineNum <= n.end_line + 10) {
+            sourceNode = n;
+            break;
+          } else if (lineNum < n.start_line) {
+            right = mid - 1;
+          } else {
+            left = mid + 1;
+          }
+        }
+
         if (sourceNode) {
           const edgeId = sha256(this.projectPath + sourceNode.node_id + targetName + 'calls');
           edges.push({
