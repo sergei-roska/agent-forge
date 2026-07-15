@@ -27,15 +27,17 @@ export class SemanticChunker {
     const paragraphs = this.splitParagraphs(text);
     const chunks: TextChunk[] = [];
     let buffer: string[] = [];
+    let bufferLength = 0;
     let bufferStart = 1;
     let currentLine = 1;
 
     for (const { text: para, startLine } of paragraphs) {
-      const joined = buffer.length ? buffer.join('\n\n') + '\n\n' + para : para;
+      const neededSpace = buffer.length > 0 ? bufferLength + 2 + para.length : para.length;
 
-      if (joined.length <= this.maxChars) {
+      if (neededSpace <= this.maxChars) {
         if (buffer.length === 0) bufferStart = startLine;
         buffer.push(para);
+        bufferLength = neededSpace;
       } else {
         // Flush current buffer
         if (buffer.length > 0) {
@@ -49,10 +51,12 @@ export class SemanticChunker {
           const subChunks = this.splitBySentences(para, startLine);
           chunks.push(...subChunks);
           buffer = [];
+          bufferLength = 0;
           const lastChunk = subChunks.at(-1);
           currentLine = lastChunk ? lastChunk.end_line + 1 : startLine;
         } else {
           buffer = [para];
+          bufferLength = para.length;
           bufferStart = startLine;
         }
       }

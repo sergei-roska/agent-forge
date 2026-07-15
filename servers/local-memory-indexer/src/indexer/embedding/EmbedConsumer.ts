@@ -184,6 +184,8 @@ export class EmbedConsumer {
       updated_at: Date.now(),
     });
 
+    let currentVectorCount = this.chunks.countEmbedded(this.projectPath);
+
     // ── Main loop ────────────────────────────────────────────────────────────
     const maxConsecutiveErrors = 3;
     let consecutiveErrors = 0;
@@ -230,7 +232,8 @@ export class EmbedConsumer {
           chunks_embedded: result.chunks_embedded,
           updated_at: Date.now(),
         });
-        this.stats.setVectorCount(this.projectPath, this.chunks.countEmbedded(this.projectPath));
+        currentVectorCount += batch.length;
+        this.stats.setVectorCount(this.projectPath, currentVectorCount);
 
         if (this.pauseRequested) {
           this.runs.update(runId, { status: 'paused', updated_at: Date.now() });

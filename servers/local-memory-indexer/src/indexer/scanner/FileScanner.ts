@@ -18,7 +18,7 @@ export interface ScanOptions extends FilterOptions {
 // ── Worker entry point ────────────────────────────────────────────────────────
 
 interface WorkerInput {
-  subtreeRoot: string;
+  subtrees: string[];
   projectRoot: string;
   maxFileSizeKb: number;
   includeGlobs?: string[];
@@ -26,7 +26,7 @@ interface WorkerInput {
 }
 
 if (!isMainThread) {
-  const { subtreeRoot, projectRoot, maxFileSizeKb, includeGlobs, excludeGlobs } =
+  const { subtrees, projectRoot, maxFileSizeKb, includeGlobs, excludeGlobs } =
     workerData as WorkerInput;
 
   const rules = new FilterRules(projectRoot, { maxFileSizeKb, includeGlobs, excludeGlobs });
@@ -51,28 +51,25 @@ if (!isMainThread) {
         if (rules.shouldSkipDir(full)) continue;
         walk(full);
       } else if (entry.isFile()) {
-        let stat: fs.Stats;
+        let stat: fs.BigIntStats;
         try {
-          stat = fs.statSync(full);
+          stat = fs.statSync(full, { bigint: true });
         } catch {
           continue;
         }
-        if (rules.shouldSkip(full, stat.size)) continue;
+        const size = Number(stat.size);
+        if (rules.shouldSkip(full, size)) continue;
 
-        // mtime_ns via BigInt stat
-        let mtime_ns: bigint;
-        try {
-          mtime_ns = fs.statSync(full, { bigint: true }).mtimeNs;
-        } catch {
-          mtime_ns = BigInt(stat.mtimeMs) * 1_000_000n;
-        }
+        const mtime_ns = stat.mtimeNs ?? BigInt(stat.mtimeMs) * 1_000_000n;
 
-        results.push({ file_path: full, size_bytes: stat.size, mtime_ns });
+        results.push({ file_path: full, size_bytes: size, mtime_ns });
       }
     }
   }
 
-  walk(subtreeRoot);
+  for (const subtreeRoot of subtrees) {
+    walk(subtreeRoot);
+  }
   parentPort!.postMessage(results);
 }
 
@@ -108,14 +105,12 @@ export async function scanProject(
   for (const entry of topEntries) {
     if (!entry.isFile()) continue;
     const full = path.join(projectRoot, entry.name);
-    let stat: fs.Stats;
-    try { stat = fs.statSync(full); } catch { continue; }
-    if (rules.shouldSkip(full, stat.size)) continue;
-    let mtime_ns: bigint;
-    try { mtime_ns = fs.statSync(full, { bigint: true }).mtimeNs; } catch {
-      mtime_ns = BigInt(stat.mtimeMs) * 1_000_000n;
-    }
-    rootFiles.push({ file_path: full, size_bytes: stat.size, mtime_ns });
+    let stat: fs.BigIntStats;
+    try { stat = fs.statSync(full, { bigint: true }); } catch { continue; }
+    const size = Number(stat.size);
+    if (rules.shouldSkip(full, size)) continue;
+    const mtime_ns = stat.mtimeNs ?? BigInt(stat.mtimeMs) * 1_000_000n;
+    rootFiles.push({ file_path: full, size_bytes: size, mtime_ns });
   }
 
   if (subtrees.length === 0) return rootFiles;
@@ -126,7 +121,7 @@ export async function scanProject(
   );
 
   const workerScript = fileURLToPath(import.meta.url);
-  const workerInput: Omit<WorkerInput, 'subtreeRoot'> = {
+  const workerInput: Omit<WorkerInput, 'subtrees'> = {
     projectRoot,
     maxFileSizeKb: opts.maxFileSizeKb ?? 512,
     includeGlobs: opts.includeGlobs,
@@ -147,26 +142,20 @@ export async function scanProject(
 function processShard(
   workerScript: string,
   subtrees: string[],
-  base: Omit<WorkerInput, 'subtreeRoot'>,
+  base: Omit<WorkerInput, 'subtrees'>,
 ): Promise<FileRecord[]> {
   return new Promise((resolve, reject) => {
-    const allFiles: FileRecord[] = [];
-    let pending = subtrees.length;
+    if (subtrees.length === 0) { resolve([]); return; }
 
-    if (pending === 0) { resolve([]); return; }
-
-    for (const subtreeRoot of subtrees) {
-      const worker = new Worker(workerScript, {
-        workerData: { ...base, subtreeRoot } satisfies WorkerInput,
-      });
-      worker.on('message', (files: FileRecord[]) => {
-        allFiles.push(...files);
-        if (--pending === 0) resolve(allFiles);
-      });
-      worker.on('error', reject);
-      worker.on('exit', (code) => {
-        if (code !== 0) reject(new Error(`Scanner worker exited with code ${code}`));
-      });
-    }
+    const worker = new Worker(workerScript, {
+      workerData: { ...base, subtrees } satisfies WorkerInput,
+    });
+    worker.on('message', (files: FileRecord[]) => {
+      resolve(files);
+    });
+    worker.on('error', reject);
+    worker.on('exit', (code) => {
+      if (code !== 0) reject(new Error(`Scanner worker exited with code ${code}`));
+    });
   });
 }

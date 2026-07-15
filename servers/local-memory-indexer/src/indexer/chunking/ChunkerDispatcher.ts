@@ -166,7 +166,13 @@ export class ChunkerDispatcher {
     this.graphRepo.deleteByFile(this.projectPath, filePath);
 
     if (route === 'ast') {
-      const rawChunks = await this.ast.chunkFile(filePath);
+      let content = '';
+      try {
+        content = fs.readFileSync(filePath, 'utf8');
+      } catch (err) {
+        throw new Error(`Failed to read file: ${err}`);
+      }
+      const rawChunks = this.ast.chunkContent(content, ext);
       const rows = rawChunks.map((c) => {
         const { chunk_id, content_hash } = computeChunkIdFromText({
           project_path: this.projectPath,
@@ -195,7 +201,6 @@ export class ChunkerDispatcher {
 
       // Now extract graph relationships
       try {
-        const content = fs.readFileSync(filePath, 'utf8');
         const chunkInfos = rows.map(r => ({
           chunk_id: r.chunk_id,
           start_line: r.start_line,

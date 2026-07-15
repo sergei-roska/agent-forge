@@ -151,18 +151,19 @@ export class AstChunker {
 
   async chunkFile(filePath: string): Promise<RawChunk[]> {
     const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
-    const lang = EXT_TO_LANG[ext];
-
     let content: string;
     try {
       content = fs.readFileSync(filePath, 'utf8');
     } catch {
       return [];
     }
+    return this.chunkContent(content, ext);
+  }
 
+  chunkContent(content: string, ext: string): RawChunk[] {
+    const lang = EXT_TO_LANG[ext.toLowerCase()];
     const lines = content.split('\n');
     const detector = lang ? DETECTORS[lang] : null;
-
     return this.buildChunks(lines, lang ?? 'unknown', detector);
   }
 
@@ -176,12 +177,12 @@ export class AstChunker {
     let currentClass: string | undefined;
 
     // Pre-compute boundary positions
-    const boundaries = new Set<number>();
+    const boundaries = new Map<number, BoundaryMatch>();
     if (detector) {
       for (let i = 0; i < lines.length; i++) {
         const t = lines[i]!.trimStart();
         const match = detector(lines[i]!, t);
-        if (match) boundaries.add(i);
+        if (match) boundaries.set(i, match);
       }
     }
 
@@ -216,8 +217,7 @@ export class AstChunker {
             currentClass = undefined;
           }
 
-          const t = lines[i]!.trimStart();
-          const match = detector(lines[i]!, t);
+          const match = boundaries.get(i);
           if (match) {
             node_type = match.node_type;
             if (match.node_type === 'class_declaration' || match.node_type === 'class_definition' ||
