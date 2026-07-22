@@ -18,7 +18,7 @@ const PROJECTION_COLUMNS = [
 const FORBIDDEN_TABLE_METHODS = new Set([
   'add', 'update', 'delete', 'mergeInsert', 'createIndex', 'dropIndex',
   'dropColumns', 'addColumns', 'alterColumns', 'optimize', 'createScalarIndex',
-  'restore', 'checkout', 'checkoutLatest', 'dropTable',
+  'restore', 'checkout', 'dropTable',
 ]);
 
 /**
@@ -134,6 +134,15 @@ export class LanceReader {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Fast-forward the table to the latest version. LanceDB Node SDK table objects
+   * are bound to the version at the time they are opened. If another process writes,
+   * we must call this to see the new data.
+   */
+  async refresh(): Promise<void> {
+    await withReadLockRetry(() => this.table.checkoutLatest());
   }
 
   /** Count rows matching the predicate (used for empty-index detection). */

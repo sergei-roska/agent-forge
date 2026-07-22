@@ -62,14 +62,17 @@ export class SearchEngine {
     this.embedder = embedder ?? new QueryEmbedder();
   }
 
-  /** Open (and memoize) a read-only LanceDB handle for the project. */
   async lance(projectPath: string): Promise<LanceReader | null> {
     if (!this.lanceCache.has(projectPath)) {
       const reader = await LanceReader.open(projectPath);
       if (reader) this.lanceCache.set(projectPath, reader);
       return reader;
     }
-    return this.lanceCache.get(projectPath) ?? null;
+    const reader = this.lanceCache.get(projectPath) ?? null;
+    if (reader) {
+      await reader.refresh();
+    }
+    return reader;
   }
 
   /** Open (and memoize) a read-only SQLite handle for the project. */

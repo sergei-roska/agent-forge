@@ -39,7 +39,9 @@ export function makeGetIndexingStatusTool(coordinator: RunCoordinator): ToolDefi
               ? `Indexing error: ${status.error ?? 'unknown'}`
               : runStatus === 'paused'
                 ? `Paused at ${progress.percent_complete}% — ${progress.chunks_pending} chunks remaining. Resume with start_indexing.`
-                : `${phase} in progress ${progress.progress_bar} ETA: ${progress.eta_seconds < 0 ? '?' : `${progress.eta_seconds}s`}`;
+                : runStatus === 'interrupted'
+                  ? `Run interrupted. ${progress.chunks_embedded} chunks embedded so far. Resume with start_indexing.`
+                  : `${phase} in progress ${progress.progress_bar} ETA: ${progress.eta_seconds < 0 ? '?' : `${progress.eta_seconds}s`}`;
 
         return ok(summary, status, status.warnings.length ? status.warnings : undefined);
       } catch (e) {
